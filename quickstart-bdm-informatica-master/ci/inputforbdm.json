@@ -1,0 +1,102 @@
+[
+    {
+        "ParameterKey": "AvailabilityZones",
+        "ParameterValue": "$[taskcat_genaz_2]"
+    },
+    {
+        "ParameterKey": "StackName",
+        "ParameterValue": "BDMStack"
+    },
+    {
+        "ParameterKey": "VPCCIDR",
+        "ParameterValue": "10.0.0.0/16"
+    },
+    {
+        "ParameterKey": "PublicSubnet1CIDR",
+        "ParameterValue": "10.0.128.0/20"
+    },
+    {
+        "ParameterKey": "PrivateSubnet1CIDR",
+        "ParameterValue": "Default": "10.0.0.0/19"
+    },
+	    {
+        "ParameterKey": "PrivateSubnet2CIDR",
+        "ParameterValue": "10.0.192.0/21"
+    },
+	    {
+        "ParameterKey": "IPAddressRange",
+        "ParameterValue": "115.114.81.10/32"
+    },
+	    {
+        "ParameterKey": "DeployRemoteServer",
+        "ParameterValue": "No"
+    },
+		    {
+        "ParameterKey": "KeyPairName",
+        "ParameterValue": "BDMKey"
+    },
+		    {
+        "ParameterKey": "DBPassword",
+        "ParameterValue": "$[taskcat_genpass_10A]"
+    },
+		    {
+        "ParameterKey": "ConfirmDBPassword",
+        "ParameterValue": "$[taskcat_getval_DBPassword]"
+    },
+		    {
+        "ParameterKey": "SelectMultiAZ",
+        "ParameterValue": "No"
+    },
+	    {
+        "ParameterKey": "InformaticaDomainUsername",
+        "ParameterValue": "Administrator"
+    },
+    {
+        "ParameterKey": "InformaticaDomainPassword",
+        "ParameterValue": "$[taskcat_genpass_10A]"
+    },
+    {
+        "ParameterKey": "InformaticaDomainPasswordConfirm",
+        "ParameterValue": "$[taskcat_getval_InformaticaDomainPassword]"
+    },
+    {
+        "ParameterKey": "InformaticaLicenseKeyS3Bucket",
+        "ParameterValue": "nandasuresh"
+    },
+    {
+        "ParameterKey": "InformaticaLicenseKeyName",
+        "ParameterValue": "license_1022.key"
+    },
+    {
+        "ParameterKey": "EmrClusterRequired",
+        "ParameterValue": "No"
+    },
+    {
+        "ParameterKey":"EMRID",
+        "ParameterValue":"<NONE>"
+    },
+    {
+        "ParameterKey":"RedshiftClusterRequired",
+        "ParameterValue":"Required"
+    },
+	    {
+        "ParameterKey":"RedshiftHost",
+        "ParameterValue":"<NONE>"
+    },
+	    {
+        "ParameterKey":"RedshiftUserName",
+        "ParameterValue":"redshift"
+    },
+	    {
+        "ParameterKey":"RedshiftDatabaseName",
+        "ParameterValue":"bdmdb"
+    },
+		    {
+        "ParameterKey":"RedshiftPassword",
+        "ParameterValue":"$[taskcat_genpass_10A]"
+    },
+		    {
+        "ParameterKey":"ConfirmRedshiftPassword",
+        "ParameterValue":"$[taskcat_getval_RedshiftPassword]"
+    }
+]
