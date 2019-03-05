@@ -17,7 +17,7 @@
     },
     {
         "ParameterKey": "PrivateSubnet1CIDR",
-        "ParameterValue": "Default": "10.0.0.0/19"
+        "ParameterValue": "10.0.0.0/19"
     },
 	    {
         "ParameterKey": "PrivateSubnet2CIDR",
