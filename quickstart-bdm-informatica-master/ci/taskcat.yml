@@ -1,7 +1,7 @@
 global:
   marketplace-ami: false
   owner: quickstart-eng@amazon.com
-  qsname: quickstart-bdm-informatica
+  qsname: BDM_10.2.2
   regions:
     - ap-northeast-1
     - ap-northeast-2
