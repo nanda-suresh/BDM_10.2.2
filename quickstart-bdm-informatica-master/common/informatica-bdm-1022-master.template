@@ -1,0 +1,694 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Informatica Enterprise Information Catalog. This template creates Amazon EC2 instances, Elastic IPs and related resources. You will be billed for the AWS resources used if you create a stack from this template. QS(5024)",
+    "Parameters": {
+          
+                
+         "RedshiftUserName":{
+    "AllowedPattern": "^$|(([a-z])([a-z]|[0-9])*)",
+    "ConstraintDescription": "must start with a-z and contain only a-z or 0-9.",
+    "Description": "The user name associated with the master user account for the Redshift cluster that is being created.It must start with a-z and contain only a-z or 0-9.",
+    "Type": "String"
+
+  },
+   "RedshiftDatabaseName": {
+    "Description": "The name of the first database to be created when the cluster is created",
+    "Type": "String",
+    "ConstraintDescription": "Only lower case alphanumeric character allowed",
+    "AllowedPattern": "^$|(([a-z]|[0-9])+)$"
+  },
+  "SelectMultiAZ": {
+    "Description": "Select MultiAZ deployment",
+    "Type": "String",
+    "MinLength": "1",
+    "AllowedValues": [
+      "Yes",
+      "No"
+    ],
+    "Default": "Yes",
+    "ConstraintDescription": "Specifying MultiAZ is mandetory"
+  },
+  "RedshiftHost": {
+    "Description": "DNS Name or IP address of the master node of an existing Redshift cluster which you intend to use for the Informatica sample jobs. Leave this <NONE> to create a new Redshift cluster.The cluster should be in the VPC selected by user above.",
+    "Type": "String",
+    "Default": "<NONE>"
+  }, "RedshiftClusterRequired": {
+    "Description": "This is not required for domain creation. If selected No, ignore below fields under Amazon RedShift Configuration also you will not be able to run sample redshift related mappings.",
+    "Type": "String",
+    "Default": "Skip",
+    "AllowedValues": [ "Skip", "Required" ]
+  },
+  "EmrClusterRequired": {
+    "Description": "This is not required for domain creation. If selected No, ignore below fields under Amazon EMR Configuration also you will not be able to run sample EMR related mappings.",
+    "Type": "String",
+    "Default": "No",
+    "AllowedValues": [ "Yes", "No" ]
+  },
+  "RedshiftPassword": {
+    "Description": "The password that is associated with the master user account for the cluster that is being created. Default is set to Defaultuser1. Must be 8 to 64 characters in length and contain at least one uppercase letter, one lowercase letter, and one number. Space, single or double quote, front and back slash not allowed.",
+    "Type": "String",
+    "ConstraintDescription": "Must be 8 to 64 characters in length and contain at least one uppercase letter, one lowercase letter, and one number. Space, single or double quote, front and back slash not allowed.",
+    "NoEcho": "true",
+    "AllowedPattern": "^$|((?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d!#$%&\\(\\)*+,-.;<=>?\\[\\]^_`{|}~]{8,64})$"
+  },
+  "ConfirmRedshiftPassword": {
+    "Description": "The password that is associated with the master user account for the cluster that is being created. Default is set to Defaultuser1. Must be 8 to 64 characters in length and contain at least one uppercase letter, one lowercase letter, and one number. Space, single or double quote, front and back slash not allowed.",
+    "Type": "String",
+    "ConstraintDescription": "Must be 8 to 64 characters in length and contain at least one uppercase letter, one lowercase letter, and one number. Space, single or double quote, front and back slash not allowed.",
+    "NoEcho": "true",
+    
+    "AllowedPattern": "^$|((?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d!#$%&\\(\\)*+,-.;<=>?\\[\\]^_`{|}~]{8,64})$"
+  },
+   "EMRID": {
+    "Description": "Enter a ID of the existing EMR cluster.Leave it <NONE> if you are selecting autodeploy or new cluster. ",
+    "Type": "String",
+    "Default": "<NONE>"
+  },
+  "DeployRemoteServer": {
+    "Type": "String",
+    "Default": "No",
+    "AllowedValues": [
+      "Yes",
+      "No"
+    ],
+    "Description": "Select Yes to deploy a Remote Windows Server to access other resources in the VPC. **We Strongly recomand if you choose Yes then choose Service subnets which are not attached to a Internet gateway."
+  },
+      "InformaticaDomainUsername": {
+        "AllowedPattern": "^([a-zA-Z][a-z0-9A-Z_]{7,32})$",
+        "ConstraintDescription": "Only alphanumeric characters and underscore are allowed. Should begin with an alphabet. The value must be 8-32",
+        "Description": "Username for the Informatica Domain.",
+        "Default": "Administrator",
+        "MaxLength": "32",
+        "MinLength": "8",
+        "Type": "String"
+      },
+      "InformaticaDomainPassword": {
+        "AllowedPattern": "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^\\s\\w])(?!.*[\"$&]).{7,32}$",
+        "ConstraintDescription": "Password must be at least 8 characters in length. Should contain at least one special character, number, upper-case and lower-case character. Double quote(\"), ampersand(&) and dollar($) is not allowed",
+        "Description": "Password for the Informatica Domain. Password must be at least 8 characters in length. Should contain at least one special character, number, upper-case and lower-case character. Double quote(\"), ampersand(&) and dollar($) is not allowed",
+        "NoEcho": "True",
+        "MaxLength": "32",
+        "MinLength": "8",
+        "Type": "String"
+      },
+      "InformaticaDomainPasswordConfirm": {
+        "AllowedPattern": "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^\\s\\w])(?!.*[\"$&]).{7,32}$",
+        "ConstraintDescription": "Password must be at least 8 characters in length. Should contain at least one special character, number, upper-case and lower-case character. Double quote(\"), ampersand(&) and dollar($) is not allowed",
+        "Description": "Password for the Informatica Domain.",
+        "NoEcho": "True",
+        "MaxLength": "32",
+        "MinLength": "8",
+        "Type": "String"
+      },
+  
+      "KeyPairName": {
+        "Description": "Name of an existing EC2 KeyPair to enable SSH access to the Informatica Domain",
+        "Type": "AWS::EC2::KeyPair::KeyName"
+      },     
+      "AvailabilityZones": {
+        "Description": "Choose atleast 2 zones. List of Availability Zones to use for the subnets in the VPC. Note: The logical order is preserved.",
+        "Type": "List<AWS::EC2::AvailabilityZone::Name>"
+      },
+      "PrivateSubnet1CIDR": {
+        "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+        "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+        "Default": "10.0.0.0/19",
+        "Description": "CIDR block for private subnet 1",
+        "Type": "String"
+      },
+      "PrivateSubnet2CIDR": {
+        "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+        "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+        "Default": "10.0.192.0/21",
+        "Description": "CIDR block for private subnet 2",
+        "Type": "String"
+      },
+      "PublicSubnet1CIDR": {
+        "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+        "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+        "Default": "10.0.128.0/20",
+        "Description": "CIDR block for Public subnet",
+        "Type": "String"
+      },
+      "InformaticaLicenseKeyS3Bucket": {
+        "Type": "String",
+        "Description": "**Use a bucket of same region, the stack is being launched. Name of the Amazon S3 bucket in your account that contains the Informatica Enterprise Information Catalog Key",
+        "MinLength": "1",
+        "ConstraintDescription": "Informatica EIC Key S3 Bucket is mandatory"
+      },
+      "InformaticaLicenseKeyName": {
+        "Type": "String",
+        "Description": "The Informatica Enterprise Information Catalog license key name. For example, <license key name> or <bucket sub folder/license key name>",
+        "MinLength": "1",
+        "ConstraintDescription": "Informatica EIC Key Name is mandatory"
+      },      
+      
+      "DBPassword": {
+        "AllowedPattern": "^([a-zA-Z][a-z0-9A-Z_]{3,20})$",
+        "ConstraintDescription": "Only alphanumeric characters and underscore are allowed. Should begin with an alphabet. The value must be 8-18",
+        "Description": "Password for the Amazon RDS database account. Only alphanumeric characters and underscore are allowed. Should begin with an alphabet. The value must be 8-18",
+        "MaxLength": "18",
+        "MinLength": "8",
+        "NoEcho": "True",
+        "Type": "String"
+      },
+      "ConfirmDBPassword": {
+        "NoEcho": "True",
+        "Type": "String",
+        "MinLength": "1",
+        "ConstraintDescription": "Confirm Password is mandatory "
+      },     
+      "IPAddressRange": {
+        "Description": "The CIDR IP range that is permitted to access the Informatica domain and the Informatica embedded cluster",
+        "Type": "String",
+        "Default": "0.0.0.0/0",
+        "MinLength": "9",
+        "MaxLength": "18",
+        "AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+        "ConstraintDescription": "must be a valid IP CIDR range of the form x.x.x.x/x."
+      },
+      
+      "VPCCIDR": {
+        "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/(1[6-9]|2[0-8]))$",
+        "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/16-28",
+        "Default": "10.0.0.0/16",
+        "Description": "CIDR block for the VPC",
+        "Type": "String"
+      }           
+    },
+    "Rules": {
+      "SubnetsInVPC": {
+        "Assertions": [
+          {
+            "Assert": {
+              "Fn::EachMemberIn": [
+                {
+                  "Fn::ValueOfAll": [
+                    "AWS::EC2::Subnet::Id",
+                    "VpcId"
+                  ]
+                },
+                {
+                  "Fn::RefAll": "AWS::EC2::VPC::Id"
+                }
+              ]
+            },
+            "AssertDescription": "All subnets must in the VPC"
+          }
+        ]
+      },
+	  "matchRedshiftPasswords": {
+            "Assertions": [
+                {
+                    "Assert": {
+                        "Fn::Equals": [
+                            {
+                                "Ref": "RedshiftPassword"
+                            },
+                            {
+                                "Ref": "ConfirmRedshiftPassword"
+                            }
+                        ]
+                    },
+                    "AssertDescription": "Passwords do not match"
+                }
+            ]
+        },
+      "matchDBPasswords": {
+        "Assertions": [
+          {
+            "Assert": {
+              "Fn::Equals": [
+                {
+                  "Ref": "DBPassword"
+                },
+                {
+                  "Ref": "ConfirmDBPassword"
+                }
+              ]
+            },
+            "AssertDescription": "Passwords do not match"
+          }
+        ]
+      },
+      "matchAdministratorPasswords": {
+        "Assertions": [
+          {
+            "Assert": {
+              "Fn::Equals": [
+                {
+                  "Ref": "InformaticaDomainPassword"
+                },
+                {
+                  "Ref": "InformaticaDomainPasswordConfirm"
+                }
+              ]
+            },
+            "AssertDescription": "Passwords do not match"
+          }
+        ]
+      },
+	  "RedshiftValidation": {
+          "RuleCondition": {
+            "Fn::Equals": [
+              {
+                "Ref": "RedshiftClusterRequired"
+              },
+              "Skip"
+            ]
+          },
+          "Assertions": [
+            {
+              "Assert": {
+                
+                    "Fn::Equals": [
+                      {
+                        "Ref": "RedshiftPassword"
+                      },
+                      ""
+                    ]
+                  
+              },
+              "AssertDescription": "Redshift Password Should be blank if Skip is selected"
+            },
+            {
+              "Assert": {
+                
+                    "Fn::Equals": [
+                      {
+                        "Ref": "ConfirmRedshiftPassword"
+                      },
+                      ""
+                    ]
+                  
+              },
+              "AssertDescription": "Redshift Confirm Password Should be blank if Skip is selected"
+            },
+			 {
+              "Assert": {
+                
+                    "Fn::Equals": [
+                      {
+                        "Ref": "RedshiftUserName"
+                      },
+                      ""
+                    ]
+                  
+              },
+              "AssertDescription": "Redshift UserName Should be blank if Skip is selected"
+            },
+			 {
+              "Assert": {
+                
+                    "Fn::Equals": [
+                      {
+                        "Ref": "RedshiftDatabaseName"
+                      },
+                      ""
+                    ]
+                  
+              },
+              "AssertDescription": "Redshift Database Name Should be blank if Skip is selected"
+            }
+          ]
+        }
+    },
+    "Conditions": {
+      "GovCloudCondition": {
+        "Fn::Equals": [
+          {
+            "Ref": "AWS::Region"
+          },
+          "us-gov-west-1"
+        ]
+      }
+    },
+    "Metadata": {
+      "AWS::CloudFormation::Interface": {
+        "ParameterGroups": [
+          {
+            "Label": {
+              "default": "Network Configuration"
+            },
+            "Parameters": [
+              "AvailabilityZones",
+              "VPCCIDR",
+              "PublicSubnet1CIDR",
+              "PrivateSubnet1CIDR",
+              "PrivateSubnet2CIDR",
+              "IPAddressRange",
+			        "DeployRemoteServer"
+            ]
+          },
+          {
+            "Label": {
+              "default": "Amazon EC2 Configuration"
+            },
+            "Parameters": [
+              "KeyPairName"
+            ]
+          },
+          {
+            "Label": {
+              "default": "Amazon RDS Configuration"
+            },
+            "Parameters": [
+              "DBPassword",
+              "ConfirmDBPassword",
+			        "SelectMultiAZ"
+            ]
+          },
+          {
+            "Label": {
+              "default": "Informatica Big Data Management Configuration"
+            },
+            "Parameters": [
+              
+              "InformaticaDomainUsername",
+              "InformaticaDomainPassword",
+              "InformaticaDomainPasswordConfirm",
+              "InformaticaLicenseKeyS3Bucket",
+              "InformaticaLicenseKeyName"
+            ]
+          },
+        {
+          "Label": {
+            "default": "Amazon EMR Configuration"
+          },
+          "Parameters": [
+            "EmrClusterRequired",
+            "EMRID"
+          ]
+        },
+          {
+          "Label": {
+            "default": "Amazon RedShift Configuration"
+          },
+          "Parameters": [
+            "RedshiftClusterRequired",
+            "RedshiftHost",
+            "RedshiftUserName",
+            "RedshiftDatabaseName",
+            "RedshiftPassword",
+            "ConfirmRedshiftPassword"
+          ]
+    }      
+        ],
+        "ParameterLabels": {
+		 "DeployRemoteServer": {
+          "default": "Deploy a Remote Windows server?"
+        },
+       "RedshiftUserName":{
+          "default":"Redshift User Name"
+        },
+        "RedshiftClusterRequired": {
+          "default": "Redshift Deploy Type"
+        },
+        "RedshiftDatabaseName": {
+          "default": "Redshift Database Name"
+        },
+        "RedshiftPassword": {
+          "default": "Redshift Cluster Password"
+        },
+		"EMRID": {
+          "default": "EMR ID of EMR cluster"
+        },
+		"EmrClusterRequired": {
+          "default": "EMR AutoDeploy"
+        },
+          "InformaticaDomainUsername": {
+            "default": "Informatica Administrator Username"
+          },
+          "InformaticaDomainPassword": {
+            "default": "Informatica Administrator Password"
+          },
+          "InformaticaDomainPasswordConfirm": {
+            "default": "Confirm Password"
+          },
+          "KeyPairName": {
+            "default": "Key Pair Name"
+          },
+          "PublicSubnet1ID": {
+            "default": "Informatica Domain Subnet"
+          },         
+          "VPCCIDR":{
+            "default":"VPC CIDR"
+          },                    
+        
+          "InformaticaLicenseKeyS3Bucket": {
+            "default": "Enterprise Information Catalog License Key Location"
+          },
+          "InformaticaLicenseKeyName": {
+            "default": "Enterprise Information Catalog License Key Name"
+          },
+          "InformaticaServerSubnetID": {
+            "default": "Informatica Domain Subnet"
+          },
+        
+          "DBPassword": {
+            "default": "Informatica Database Instance Password"
+          },
+          "ConfirmDBPassword": {
+            "default": "Confirm Password"
+          },
+          "PublicSubnet1CIDR": {
+            "default": "Public Subnet CIDR"
+          },
+          "PrivateSubnet1CIDR": {
+            "default": "Private Subnet1 CIDR"
+          },
+          "PrivateSubnet2CIDR": {
+            "default": "Private Subnet2  CIDR"
+          },
+         
+          "IPAddressRange": {
+            "default": "IP Address Range"
+          },
+		   "SelectMultiAZ": {
+          "default": "Select MultiAZ deployment"
+        }
+          
+        }
+      }
+    },
+   "Mappings": {
+    "s3BucketMap": {
+      "QSS3Bucket": {
+        "value": "infa-aws-resources"
+      },
+      "QSS3Prefix": {
+        "value": ""
+      }
+    }
+  },
+    "Resources": {
+      "VPCStack": {
+        "Type": "AWS::CloudFormation::Stack",
+        "Properties": {
+		
+               "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/aws-vpc.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+          ]
+        },
+          "Parameters": {
+            "AvailabilityZones": {
+              "Fn::Join": [
+                ",",
+                {
+                  "Ref": "AvailabilityZones"
+                }
+              ]
+            },
+            "PrivateSubnet1ACIDR": {
+              "Ref": "PrivateSubnet1CIDR"
+            },
+            "PrivateSubnet2ACIDR": {
+              "Ref": "PrivateSubnet2CIDR"
+            },
+            "PublicSubnet1CIDR": {
+              "Ref": "PublicSubnet1CIDR"
+            },
+            "VPCCIDR": {
+              "Ref": "VPCCIDR"
+            }
+          }
+        }
+      },
+      "BDMStack": {
+        "Type": "AWS::CloudFormation::Stack",
+        "Properties": {
+          "TemplateURL": {
+            "Fn::Sub": [
+             "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/bdm/informatica-bdm-1022-main.template",
+               {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+            ]
+          },
+          "Parameters": {
+           "EmrClusterRequired":{
+			"Ref":"EmrClusterRequired"
+		   },
+		   "EMRID": {
+			"Ref":"EMRID"
+		  },
+		  "RedshiftUserName":{
+			"Ref":"RedshiftUserName" 
+			},
+        "RedshiftClusterRequired": {
+			"Ref":"RedshiftClusterRequired"        },
+			"RedshiftDatabaseName": {
+ "Ref":"RedshiftDatabaseName"        },
+        "RedshiftPassword": {
+ "Ref":"RedshiftPassword"        },
+            "VPCID": {
+              "Fn::GetAtt": [
+                "VPCStack",
+                "Outputs.VPCID"
+              ]
+            },
+            "InformaticaLicenseKeyS3Bucket": {
+              "Ref": "InformaticaLicenseKeyS3Bucket"
+            },
+            "InformaticaLicenseKeyName": {
+              "Ref": "InformaticaLicenseKeyName"
+            },
+           "InformaticaDomainPassword":{
+		   "Ref":"InformaticaDomainPassword"
+		   },
+		   "InformaticaDomainPasswordConfirm":{
+		   "Ref":"InformaticaDomainPasswordConfirm"
+		   },
+            "ConfirmRedshiftPassword":{
+			"Ref":"ConfirmRedshiftPassword"
+			},
+           
+            "DBPassword":{
+              "Ref":"DBPassword"
+            },
+            "ConfirmDBPassword":{
+              "Ref":"ConfirmDBPassword"
+            },
+           
+            "KeyPairName":{
+              "Ref":"KeyPairName"
+            },                                                                                                                                   
+           
+            "PublicSubnetID": {
+              "Fn::GetAtt": [
+                "VPCStack",
+                "Outputs.PublicSubnet1ID"
+              ]
+            },
+           
+            "PrivateSubnetID1": {
+              "Fn::GetAtt": [
+                "VPCStack",
+                "Outputs.PrivateSubnet1AID"
+              ]
+            },
+            "PrivateSubnetID2": {
+              "Fn::GetAtt": [
+                "VPCStack",
+                "Outputs.PrivateSubnet2AID"
+              ]
+            },
+            "IPAddressRange": {
+              "Ref": "IPAddressRange"
+            },
+			"DeployRemoteServer":{
+			  "Ref":"DeployRemoteServer"
+			}
+          }
+        }
+      }
+    },
+    "Outputs": {
+      "InformaticaAdminConsoleURL": {
+        "Description": "Informatica Administrator Console",
+        "Value": {
+          "Fn::GetAtt": [
+            "BDMStack",
+            "Outputs.InformaticaAdminConsoleURL"
+          ]
+        },
+        "Export": {
+          "Name": {
+            "Fn::Sub": "${AWS::StackName}:InformaticaAdminConsoleURL"
+          }
+        }
+      },
+      "InformaticaAdminConsoleServerLogs": {
+        "Description": "Informatica Domain Installation Log Location",
+        "Value": {
+          "Fn::GetAtt": [
+            "BDMStack",
+            "Outputs.InformaticaAdminConsoleServerLogs"
+          ]
+        },
+        "Export": {
+          "Name": {
+            "Fn::Sub": "${AWS::StackName}:InformaticaAdminConsoleServerLogs"
+          }
+        }
+      },
+      "InstanceSetupLogs": {
+        "Description": "Informatica Domain EC2 Instance setup Log Location",
+        "Value": {
+          "Fn::GetAtt": [
+            "BDMStack",
+            "Outputs.InstanceSetupLogs"
+          ]
+        },
+        "Export": {
+          "Name": {
+            "Fn::Sub": "${AWS::StackName}:InstanceSetupLogs"
+          }
+        }
+      }
+    }
+  }

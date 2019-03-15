@@ -1,0 +1,721 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Informatica Enterprise Information Catalog. This template creates Amazon EC2 instances, Elastic IPs and related resources. You will be billed for the AWS resources used if you create a stack from this template. QS(5024)",
+  "Parameters": {
+    "KeyName": {
+      "Description": "Name of an existing Amazon EC2 keypair. You must specify this option to enable SSH access to Informatica domain and cluster instances",
+      "Type": "String",
+      "ConstraintDescription": "Specifying EC2 keypair is mandatory"
+    },
+    "EmrClusterRequired": {
+      "Description": "This is not required for domain creation. If selected No, ignore below fields under Amazon EMR Configuration also you will not be able to run sample EMR related mappings.",
+      "Type": "String"
+    },
+    "VPCID": {
+      "Description": "Which VPC should this be deployed to?",
+      "Type": "String"
+    },
+    "RedshiftClusterRequired": {
+      "Description": "This is not required for domain creation. If selected No, ignore below fields under Amazon RedShift Configuration also you will not be able to run sample redshift related mappings.",
+      "Type": "String",
+      "Default": "Required"
+    },    
+    "InformaticaAdminUsername": {
+      "Description": "Username for the Informatica Domain.",
+      "Type": "String"
+    },
+    "RemoteAccessEMRSecurityGroup":{
+      "Description": "remote access emr security group.",
+      "Type":"String"
+    },
+    "InfaDomainEMRSecurityGroup":{
+      "Type":"String"
+    },
+    "InformaticaAdminPassword": {
+      "Description": "Password for the Informatica Domain. Password must be at least 8 characters in length. Should contain at least one special character, number, upper-case and lower-case character. Double quote(\"), ampersand(&), space and dollar($) is not allowed",
+      "Type": "String"
+    },
+    "InfaDBPassword": {
+      "Type": "String",
+      "Description": "DB password",
+      "ConstraintDescription": "Specifying DB password is mandatory"
+    },
+    "InfaDBEndpoint": {
+      "Type": "String",
+      "Description": "DB Endpoint"
+	  },
+    "InstanceRole": {
+      "Type": "String",
+      "Description": "Instance Role for S3 access"
+	  },
+    "InstanceProfile": {
+      "Type": "String",
+      "Description": "Instance Profile for S3 access"
+      
+    },
+    "AdministrationServerNetInterface": {
+      "Type": "String",
+      "Description": "Interface ID for Administrator Server"
+    },
+    "InformaticaLicenseKeyS3Bucket": {
+      "Type": "String",
+      "Description": "Bucket containing Informatica License."
+    },
+    "InformaticaLicenseKeyName": {
+      "Type": "String",
+      "Description": "Informatica License key name."
+    },
+    "PrivateSubnetID2": {
+      "Description": "Select a publically accessible subnet ID for the Informatica Domain",
+      "Type": "String"
+
+    },
+    "EMRID":{
+      "Type": "String",
+      "Default": "",
+      "Description": "EMR Cluster ID."
+    },
+    "RedshiftDatabaseName": {
+      "Description": "The name of the first database to be created when the cluster is created",
+      "Type": "String",
+      "Default": ""
+    },
+    "RedshiftDatabasePort":{
+          "Type":"String"
+    },
+    "RedshiftPassword": {
+      "Description": "The password that is associated with the master user account for the cluster that is being created. Default is set to Defaultuser1. Must be 8 to 64 characters in length and contain at least one uppercase letter, one lowercase letter, and one number. Space, single or double quote, front and back slash not allowed.",
+      "Type": "String"
+    },
+    "RedshiftUsername": {
+      "Description": "The user name that is associated with the master user account for the cluster that is being created",
+      "Type": "String"
+    },
+    "S3BucketName":{
+      "Type":"String"
+    },    
+    "RedshiftHost":{
+      "Type":"String",
+      "Description":"RedshiftHost Name"
+    },
+	"QSS3Bucket": {
+      "Type": "String",
+      "Default": "infa-aws-resources",
+      "Description": "Infa resources s3 bucket name"
+    },
+    "QSS3Prefix": {
+      "Type": "String",
+      "Default": "",
+      "Description": "Infa resources s3 bucket resource folder prefix"
+    }
+  },
+  "Rules": {
+  },
+  "Conditions": {
+   
+    "GovCloudCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region"
+        },
+        "us-gov-west-1"
+      ]
+    },
+    "VirginiaCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region"
+        },
+        "us-east-1"
+      ]
+    }
+  },
+  "Mappings": {
+    "S3ConnectionMap": {
+      "ap-northeast-1": {
+          "REGION": "Asia Pacific(Tokyo)"
+      },
+      "eu-west-3":{
+        "REGION": "EU (Paris)"
+      },
+      "cn-north-1":{
+        "REGION": "China (Beijing)"
+      },
+      "cn-northwest-1":{
+        "REGION": "China (Ningxia)"
+      },
+      "us-gov-west-1":{
+        "REGION": "AWS GovCloud (US)"
+      },
+      "ap-northeast-2": {
+          "REGION": "Asia Pacific(Seoul)"
+      },
+      "ap-south-1": {
+          "REGION": "Asia Pacific(Mumbai)"
+      },
+      "ap-southeast-1": {
+          "REGION": "Asia Pacific(Singapore)"
+      },
+      "ap-southeast-2": {
+          "REGION": "Asia Pacific(Sydney)"
+      },
+      "ca-central-1": {
+          "REGION": "Canada(Central)"
+      },
+      "eu-central-1": {
+          "REGION": "EU(Frankfurt)"
+      },
+      "eu-west-1": {
+          "REGION": "EU(Ireland)"
+      },
+      "eu-west-2": {
+          "REGION": "EU(London)"
+      },
+      "sa-east-1": {
+          "REGION": "South America(Sao Paulo)"
+      },
+      "us-east-1": {
+          "REGION": "US East(N. Virginia)"
+      },
+      "us-east-2": {
+          "REGION": "US East(Ohio)"
+      },
+      "us-west-1": {
+          "REGION": "US West(N. California)"
+      },
+      "us-west-2": {
+          "REGION": "US West(Oregon)"
+      }
+    },
+       "AWSAMIRegionMap": {
+      "AMI": {
+        "INFAEICADMINHVM": "Administrator-Server Image EIC on AWS"
+      },
+      "ap-northeast-1": {
+        "INFAEICADMINHVM": "ami-091b70df1f78523a9"
+      },
+      "ap-northeast-2": {
+        "INFAEICADMINHVM": "ami-0314efd09f6e1e44c"
+      },
+      "ap-south-1": {
+        "INFAEICADMINHVM": "ami-01714f9f8f05ddcf5"
+      },
+      "ap-southeast-1": {
+        "INFAEICADMINHVM": "ami-03dc899cdb3238bcb"
+      },
+      "ap-southeast-2": {
+        "INFAEICADMINHVM": "ami-09cf893c354e466b8"
+      },
+      "ca-central-1": {
+        "INFAEICADMINHVM": "ami-006a66dbaa73293ed"
+      },
+      "eu-central-1": {
+        "INFAEICADMINHVM": "ami-0141dc7990a64deff"
+      },
+      "eu-west-1": {
+        "INFAEICADMINHVM": "ami-04b04f4c66be30272"
+      },
+      "eu-west-2": {
+        "INFAEICADMINHVM": "ami-092449347daff4879"
+      },
+	  "eu-north-1": {
+        "INFAEICADMINHVM": "ami-03e2197678c66f1b3"
+      },
+      "sa-east-1": {
+        "INFAEICADMINHVM": "ami-069a44052027aeeb0"
+      },
+      "us-east-1": {
+        "INFAEICADMINHVM": "ami-0a26836b30cebbaf9"
+      },
+      "us-east-2": {
+        "INFAEICADMINHVM": "ami-0c1af0e4f9d18180c"
+      },
+      "us-west-1": {
+        "INFAEICADMINHVM": "ami-0dea75af1a8e85d21"
+      },
+      "us-west-2": {
+        "INFAEICADMINHVM": "ami-0b6a5293087235032"
+      },
+      "us-gov-west-1": {
+        "INFAEICADMINHVM": "TBD"
+      }
+    }
+  },
+  "Resources": {
+    "AdministrationServer": {
+      "Type": "AWS::EC2::Instance",
+      "Metadata": {
+        "AWS::CloudFormation::Authentication": {
+          "S3AccessCreds": {
+            "type": "S3",
+            "roleName": {
+              "Ref": "InstanceRole"
+            },
+            "buckets": [
+              {
+                "Ref": "InformaticaLicenseKeyS3Bucket"
+              }
+            ]
+          }
+        },
+        "AWS::CloudFormation::Init": {
+          "configSets": {
+            "InstallAndRun": [
+              "Install",
+              "Configure"
+            ]
+          },
+          "Install": {
+            "files": {
+              "/home/downloads/updateDNS.sh": {
+                "source": {
+                  "Fn::Sub": [
+                    "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}common/updateDNS.sh",
+                    {
+                      "QSS3Region": {
+                        "Fn::If": [
+                          "GovCloudCondition",
+                          "s3-us-gov-west-1",
+                          "s3"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "mode": "000777",
+                "owner": "ec2-user",
+                "group": "ec2-user"
+              },
+              "/home/downloads/infa_server.sh": {
+                "source": {
+                  "Fn::Sub": [
+                    "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}common/infa_server.sh",
+                    {
+                      "QSS3Region": {
+                        "Fn::If": [
+                          "GovCloudCondition",
+                          "s3-us-gov-west-1",
+                          "s3"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "mode": "000777",
+                "owner": "ec2-user",
+                "group": "ec2-user"
+              },
+              "/home/downloads/oracleSQLRunner.jar": {
+                "source": {
+                  "Fn::Sub": [
+                    "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}common/oracleSQLRunner.jar",
+                    {
+                      "QSS3Region": {
+                        "Fn::If": [
+                          "GovCloudCondition",
+                          "s3-us-gov-west-1",
+                          "s3"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "mode": "000777",
+                "owner": "ec2-user",
+                "group": "ec2-user"
+              },
+			  "/home/downloads/RedshiftSQLFileRunner.jar": {
+                "source": {
+                  "Fn::Sub": [
+                    "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}common/RedshiftSQLFileRunner.jar",
+                    {
+                      "QSS3Region": {
+                        "Fn::If": [
+                          "GovCloudCondition",
+                          "s3-us-gov-west-1",
+                          "s3"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "mode": "000777",
+                "owner": "ec2-user",
+                "group": "ec2-user"
+              },
+			  "/home/downloads/Redshift.sql": {
+                "source": {
+                  "Fn::Sub": [
+                    "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}common/Redshift.sql",
+                    {
+                      "QSS3Region": {
+                        "Fn::If": [
+                          "GovCloudCondition",
+                          "s3-us-gov-west-1",
+                          "s3"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "mode": "000777",
+                "owner": "ec2-user",
+                "group": "ec2-user"
+              },
+              "/home/downloads/hadoop.zip": {
+                "source": {
+                  "Fn::Sub": [
+                    "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}common/hadoop.zip",
+                    {
+                      "QSS3Region": {
+                        "Fn::If": [
+                          "GovCloudCondition",
+                          "s3-us-gov-west-1",
+                          "s3"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "mode": "000777",
+                "owner": "ec2-user",
+                "group": "ec2-user"
+              }
+            },
+            "commands": {
+              "01_EICLicense": {
+                "command": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "aws s3 cp s3://",
+                      {
+                        "Ref": "InformaticaLicenseKeyS3Bucket"
+                      },
+                      "/",
+                      {
+                        "Ref": "InformaticaLicenseKeyName"
+                      },
+                      " /home/downloads/License.key",
+                      {
+                        "Fn::If": [
+                          "VirginiaCondition",
+                          "",
+                          {
+                            "Fn::Join": [
+                              "",
+                              [
+                                " --region ",
+                                {
+                                  "Ref": "AWS::Region"
+                                }
+                              ]
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  ]
+                }
+              }
+            }
+          },
+          "Configure": {
+            "commands": {
+              "01_ChangePermission": {
+                "command": "chmod 777 -R /home/downloads"
+              },
+              "02_InstallDos2Unix": {
+                "command": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "yum install -y dos2unix.x86_64"
+                    ]
+                  ]
+                }
+              },
+              "03_Change2Unix": {
+                "command": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "dos2unix /home/downloads/updateDNS.sh /home/downloads/infa_server.sh"
+                    ]
+                  ]
+                }
+              },
+              "04_RunHostFile": {
+                "command": {
+                  "Fn::Join": [
+                    "",
+                    [
+					"sh /home/downloads/updateDNS.sh"
+					  ]
+                  ]
+                }
+              },
+              "05_RunInfaScript": {
+                "command": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "sh /home/downloads/infa_server.sh",
+                      " \"BDM\" \"",
+					  
+                      {
+                        "Ref": "InformaticaAdminUsername"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "InformaticaAdminPassword"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "InfaDBPassword"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "InfaDBEndpoint"
+                      },
+                      "\" \"",
+                      
+                        "EDC1",
+                      
+                      "\" \"",
+                      
+                        "EDC2"
+                      ,
+                      "\" \"",
+                      {
+                        "Ref": "EMRID"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "EmrClusterRequired"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "RedshiftClusterRequired"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "RedshiftUsername"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "RedshiftPassword"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "RedshiftHost"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "RedshiftDatabasePort"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "RedshiftDatabaseName"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "S3BucketName"
+                      },
+                      "\" \"", 
+                      {
+                        "Ref": "PrivateSubnetID2"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "KeyName"
+                      },
+                      "\" \"",
+                      {
+                        "Fn::FindInMap": [
+													"S3ConnectionMap", {
+														"Ref": "AWS::Region"
+													},
+													"REGION"
+												]
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "RemoteAccessEMRSecurityGroup"
+                      },
+                      "\" \"", 
+                      {
+                        "Ref": "InfaDomainEMRSecurityGroup"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "InstanceProfile"
+                      },
+                      "\" \"",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\""
+                      
+                    ]
+                  ]
+                }
+              },
+              "06_cleanup": {
+                "command": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "ls /home/downloads/*"
+                    ]
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "IamInstanceProfile": {
+          "Ref": "InstanceProfile"
+        },
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSAMIRegionMap",
+            {
+              "Ref": "AWS::Region"
+            },
+            "INFAEICADMINHVM"
+          ]
+        },
+        "InstanceType":
+          "m5.2xlarge"
+       ,
+        "KeyName": {
+          "Ref": "KeyName"
+        },
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "NetworkInterfaces": [
+          {
+            "NetworkInterfaceId": {
+              "Ref": "AdministrationServerNetInterface"
+            },
+            "DeviceIndex": "0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  "InformaticaDomain-",
+                  {
+                    "Ref": "AWS::StackName"
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash\n",
+                "sudo wget -O /home/downloads/awslogs-agent-setup.py https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py \n",
+                "sudo chmod +x /home/downloads/awslogs-agent-setup.py \n",
+                "sudo python /home/downloads/awslogs-agent-setup.py -n -r ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                " -c https://s3.amazonaws.com/infa-aws-resources/bdm/awsCloudwatchLogs.conf \n",
+                "service awslogs start \n",
+                "# Install the files and packages from the metadata\n",
+                "/opt/aws/bin/cfn-init -v ",
+                "         --stack ",
+                {
+                  "Ref": "AWS::StackName"
+                },
+                "         --resource AdministrationServer ",
+                "         --configsets InstallAndRun ",
+                "         --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                "\n",
+                "# Signal the status from cfn-init\n",
+                "/opt/aws/bin/cfn-signal -e $? ",
+                " --stack ",
+                {
+                  "Ref": "AWS::StackName"
+                },
+                " --resource AdministrationServer ",
+                " --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                "\n"
+              ]
+            ]
+          }
+        }
+      },
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout": "PT3H"
+        }
+      }
+    }
+  },
+  "Outputs": {
+     "InformaticaAdminConsoleURL": {
+      "Description": "Informatica Administrator Console",
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "http://",
+            {
+              
+                
+                  "Fn::GetAtt": [
+                    "AdministrationServer",
+                    "PrivateDnsName"
+                  ]
+                
+              
+              
+            },
+            ":6008"
+          ]
+        ]
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InformaticaAdminConsoleURL"
+        }
+      }
+    },
+    "InformaticaAdminConsoleServerLogs": {
+      "Description": "Informatica Domain Installation Log Location",
+      "Value": "/home/ec2-user/Infa_OnceClick_Solution.log",
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InformaticaAdminConsoleServerLogs"
+        }
+      }
+    },
+    "InstanceSetupLogs": {
+      "Description": "Informatica Domain EC2 Instance setup Log Location",
+      "Value": "/var/log/cfn-init-cmd.log",
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InstanceSetupLogs"
+        }
+      }
+    }
+  }
+}
