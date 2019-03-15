@@ -621,14 +621,13 @@
   }
 },
   "Resources": {
-
-    "SubnetCheckLambdaStack": {
+    "PublicSubnetCheckLambdaStack": {
       "Type": "AWS::CloudFormation::Stack",
       "Properties": {
         "TemplateURL": {
           "Fn::Sub": [
-            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/lambda-subnet-check.template",
-           {
+            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/lambda-public-subnet-check.template",
+            {
               "QSS3Region": {
                 "Fn::If": [
                   "GovCloudCondition",
@@ -660,29 +659,93 @@
           "PublicSubnetID": {
             "Ref": "PublicSubnetID"
           },
+          "DeployRemoteServer": {
+            "Ref": "DeployRemoteServer"
+          }
+        }
+      }
+    },
+    "ServiceSubnetsAZCheckLambdaStack": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/lambda-service-subnets-zone-check.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "VPCID": {
+            "Ref": "VPCID"
+          },
           "ServiceSubnetID1": {
             "Ref": "PrivateSubnetID1"
           },
-          "DeployRemoteServer":{
-            "Ref": "DeployRemoteServer"
-
-          },
           "ServiceSubnetID2": {
             "Ref": "PrivateSubnetID2"
+          }
+        }
+      }
+    },
+    "ServiceSubnetCheckLambdaStack": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/lambda-service-subnet-check.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "VPCID": {
+            "Ref": "VPCID"
           },
-		   "QSS3Bucket": {
-            "Fn::FindInMap": [
-              "s3BucketMap",
-              "QSS3Bucket",
-              "value"
-            ]
-          },
-          "QSS3Prefix": {
-            "Fn::FindInMap": [
-              "s3BucketMap",
-              "QSS3Prefix",
-              "value"
-            ]
+          "ServiceSubnetID": {
+            "Ref": "PrivateSubnetID1"
           }
         }
       }
@@ -690,7 +753,9 @@
     "S3BucketStack": {
       "Type": "AWS::CloudFormation::Stack",
       "DependsOn": [
-        "SubnetCheckLambdaStack",
+        "PublicSubnetCheckLambdaStack",
+        "ServiceSubnetsAZCheckLambdaStack",
+        "ServiceSubnetCheckLambdaStack",
         "IAMStack",
         "SecurityGroupStack"              
       ],
@@ -730,7 +795,9 @@
   },
   "IAMStack": {
     "DependsOn": [
-      "SubnetCheckLambdaStack"            
+      "PublicSubnetCheckLambdaStack",
+      "ServiceSubnetsAZCheckLambdaStack",
+      "ServiceSubnetCheckLambdaStack"           
     ],
     "Type": "AWS::CloudFormation::Stack",
     "Properties": {
@@ -772,14 +839,18 @@
         "RedshiftClusterRequired":{
           "Ref":"RedshiftClusterRequired"
         },
-		"EmrClusterRequired":{
-		  "Ref":"EmrClusterRequired"
-		}
+        "EMRID":{
+          "Ref":"EMRID"
+        }
       }
     }
   },
   "SecurityGroupStack": {
-    "DependsOn": "SubnetCheckLambdaStack",
+    "DependsOn": [
+      "PublicSubnetCheckLambdaStack",
+      "ServiceSubnetsAZCheckLambdaStack",
+      "ServiceSubnetCheckLambdaStack"
+    ],
     "Type": "AWS::CloudFormation::Stack",
     "Properties": {
        "TemplateURL": {
@@ -831,9 +902,9 @@
             "Ref": "DeployRemoteServer"
           },
     "InfaProduct": "BDM",
-	"EMRRequired":{
-	"Ref":"EmrClusterRequired"
-	}
+		"EMRID":{
+		  "Ref":"EMRID"
+		}
 	
       }
     }
@@ -841,7 +912,9 @@
       "RedshiftClusterStack": {
           "Type": "AWS::CloudFormation::Stack",
           "DependsOn": [
-            "SubnetCheckLambdaStack",
+            "PublicSubnetCheckLambdaStack",
+            "ServiceSubnetsAZCheckLambdaStack",
+            "ServiceSubnetCheckLambdaStack",
             "IAMStack",
             "SecurityGroupStack"              
           ],            
@@ -896,7 +969,9 @@
                   "ClusterType":"single-node",
                   "NumberOfNodes":"1",
                   "NodeType":"dc2.large",  
-                  "MasterUsername": "bdmuser",
+                  "MasterUsername": {
+                    "Ref":"RedshiftUserName"
+                  },
                   "MasterUserPassword": {
                       "Ref": "RedshiftPassword"
                   }
@@ -961,7 +1036,9 @@
       "EMRStack": {
         "Type": "AWS::CloudFormation::Stack",
         "DependsOn": [
-          "SubnetCheckLambdaStack",
+          "PublicSubnetCheckLambdaStack",
+          "ServiceSubnetsAZCheckLambdaStack",
+          "ServiceSubnetCheckLambdaStack",
           "IAMStack",
           "SecurityGroupStack"
         ],
@@ -1016,8 +1093,8 @@
                 },
                 "EMRClusterName":"awsquickstart",
                 "EMRCoreInstanceType":"m5.xlarge",
-                "EMRCoreNodes": "3",
-                "EMRMasterInstanceType": "m4.xlarge",
+                "EMRCoreNodes": "1",
+                "EMRMasterInstanceType": "m5.xlarge",
                 "KeyPairName": {
                   "Ref": "KeyPairName"
                 },
@@ -1081,7 +1158,9 @@
     },
     "BDMInformatica":{
       "DependsOn": [
-        "SubnetCheckLambdaStack",
+        "PublicSubnetCheckLambdaStack",
+        "ServiceSubnetsAZCheckLambdaStack",
+        "ServiceSubnetCheckLambdaStack",
         "RDSStack",
         "SecurityGroupStack",
         "IAMStack"
