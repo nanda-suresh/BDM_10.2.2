@@ -1,0 +1,39 @@
+{  
+   "AWSTemplateFormatVersion":"2010-09-09",
+   "Description":"Informatica  S3 Bucket",
+   "Parameters":{  
+
+   },
+   "Mappings":{  
+
+   },
+   "Conditions":{  
+
+   },
+   "Resources":{  
+      "BootstrapS3Bucket":{  
+         "Type":"AWS::S3::Bucket",
+         "Properties":{  
+            "Tags":[  
+               {  
+                  "Key":"Name",
+                  "Value":"Amazon S3"
+               }
+            ]
+         },
+         "DeletionPolicy":"Retain"
+      }
+   },
+   "Outputs":{  
+      "BootstrapS3Bucket":{  
+         "Value":{  
+            "Ref":"BootstrapS3Bucket"
+         },
+         "Export":{  
+            "Name":{  
+               "Fn::Sub":"${AWS::StackName}:BootstrapS3Bucket"
+            }
+         }
+      }
+   }
+}
