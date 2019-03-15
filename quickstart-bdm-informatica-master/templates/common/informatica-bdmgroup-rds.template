@@ -1,0 +1,221 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "This template creates RDS resources. **WARNING** This template creates AWS resources. You will be billed for the AWS resources used if you create a stack from this template. ",
+  "Parameters": {
+    "MasterDbPassword": {
+      "Description": "Password for the database instance associated with Informatica domain and services (such as Model Repository Service, Data Integration Service, Content Management Service)",
+      "Type": "String",
+      "NoEcho": "True"
+    },
+    "DBSubnetID1": {
+      "Description": "Select a private subnet ID for DB",
+      "Type": "AWS::EC2::Subnet::Id"
+    },
+    "DBSubnetID2": {
+      "Description": "Select a private subnet ID for DB",
+      "Type": "AWS::EC2::Subnet::Id"
+    },
+    "InfaDBSecurityGroup": {
+      "Description": "Security Group to which the database belongs",
+      "Type": "AWS::EC2::SecurityGroup::Id"
+    },
+    "SelectMultiAZ": {
+      "Description": "Select MultiAZ deployment",
+      "Type": "String"
+    }
+  },
+  "Mappings": {
+    "AWSRDSRegionMap": {
+      "RDS": {
+        "INFADBHVM": "RDS DB-Snapshot Identifier"
+      },
+      "eu-north-1": {
+        "INFADBHVM": "arn:aws:rds:eu-north-1:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "ap-south-1": {
+        "INFADBHVM": "arn:aws:rds:ap-south-1:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "eu-west-3": {
+        "INFADBHVM": "arn:aws:rds:eu-west-3:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "eu-west-2": {
+        "INFADBHVM": "arn:aws:rds:eu-west-2:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "eu-west-1": {
+        "INFADBHVM": "arn:aws:rds:eu-west-1:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "ap-northeast-2": {
+        "INFADBHVM": "arn:aws:rds:ap-northeast-2:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "ap-northeast-1": {
+        "INFADBHVM": "arn:aws:rds:ap-northeast-1:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "sa-east-1": {
+        "INFADBHVM": "arn:aws:rds:sa-east-1:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "ca-central-1": {
+        "INFADBHVM": "arn:aws:rds:ca-central-1:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "ap-southeast-1": {
+        "INFADBHVM": "arn:aws:rds:ap-southeast-1:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "ap-southeast-2": {
+        "INFADBHVM": "arn:aws:rds:ap-southeast-2:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "eu-central-1": {
+        "INFADBHVM": "arn:aws:rds:eu-central-1:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "us-east-1": {
+        "INFADBHVM": "arn:aws:rds:us-east-1:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "us-east-2": {
+        "INFADBHVM": "arn:aws:rds:us-east-2:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "us-west-1": {
+        "INFADBHVM": "arn:aws:rds:us-west-1:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "us-west-2": {
+        "INFADBHVM": "arn:aws:rds:us-west-2:516473838419:snapshot:infa-db-1022-v6"
+      },
+      "us-gov-west-1": {
+        "INFADBHVM": "TBD"
+      },
+      "us-gov-east-1": {
+        "INFADBHVM": "TBD"
+      }
+    }
+  },
+  "Conditions": {
+    "MultiAZSelected": {
+      "Fn::Equals": [
+        {
+          "Ref": "SelectMultiAZ"
+        },
+        "Yes"
+      ]
+    },
+    "GovCloudEastCnd": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region"
+        },
+        "us-gov-east-1"
+      ]
+    }
+  },
+  "Resources": {
+    "InfaDBSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "MySQL RDS Subnet Group",
+        "SubnetIds": [
+          {
+            "Ref": "DBSubnetID1"
+          },
+          {
+            "Ref": "DBSubnetID2"
+          }
+        ]
+      }
+    },
+    "InfaDBParameterGroup": {
+      "Type": "AWS::RDS::DBParameterGroup",
+      "Properties": {
+        "Description": "Oracle RDS Connection timeout fail-safe parameter group",
+        "Family": "oracle-se2-12.1",
+        "Parameters": {
+          "sqlnetora.sqlnet.send_timeout": "600",
+          "sqlnetora.sqlnet.recv_timeout": "600",
+          "sqlnetora.sqlnet.inbound_connect_timeout": "180",
+          "sqlnetora.sqlnet.outbound_connect_timeout": "180",
+          "sqlnetora.tcp.connect_timeout": "180"
+        }
+      }
+    },
+    "InfaDB": {
+      "Type": "AWS::RDS::DBInstance",
+      "DeletionPolicy": "Delete",
+      "Properties": {
+        "DBParameterGroupName": {
+          "Ref": "InfaDBParameterGroup"
+        },
+        "AllocatedStorage": "200",
+        "MultiAZ": {
+          "Fn::If": [
+            "MultiAZSelected",
+            true,
+            false
+          ]
+        },
+        "StorageType": "gp2",
+        "LicenseModel": {
+          "Fn::If": [
+            "GovCloudEastCnd",
+            "bring-your-own-license",
+            "license-included"
+          ]
+        },
+        "DBInstanceClass": {
+          "Fn::If": [
+            "GovCloudEastCnd",
+            "db.r4.xlarge",
+            "db.m5.xlarge"
+          ]
+        },
+        "DBSnapshotIdentifier": {
+          "Fn::FindInMap": [
+            "AWSRDSRegionMap",
+            {
+              "Ref": "AWS::Region"
+            },
+            "INFADBHVM"
+          ]
+        },
+        "DBSubnetGroupName": {
+          "Ref": "InfaDBSubnetGroup"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Ref": "InfaDBSecurityGroup"
+          }
+        ],
+        "Engine": "oracle-se2",
+        "PubliclyAccessible": false,
+        "MasterUsername": "admin",
+        "MasterUserPassword": {
+          "Ref": "MasterDbPassword"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "InfaDB": {
+      "Value": { "Ref": "InfaDB" },
+      "Description": "RDS Instance Name",
+      "Export": {
+        "Name": { "Fn::Sub": "${AWS::StackName}:InfaDB" }
+      }
+    },
+    "EndpointAddress": {
+      "Value": { "Fn::GetAtt": [ "InfaDB", "Endpoint.Address" ] },
+      "Description": "Database endpoint hostname",
+      "Export": {
+        "Name": { "Fn::Sub": "${AWS::StackName}:EndpointAddress" }
+      }
+    },
+    "EndpointPort": {
+      "Value": { "Fn::GetAtt": [ "InfaDB", "Endpoint.Port" ] },
+      "Description": "Database endpoint  port",
+      "Export": {
+        "Name": { "Fn::Sub": "${AWS::StackName}:EndpointPort" }
+      }
+    },
+    "DBUsersCreated": {
+      "Value": "admin is the root user. Other DB users created domain_user, mrs_user etc. Informatica product specific users created that you can see from Informatica Admin Console. Use the password you choose to access all the users.",
+      "Description": "Database Users created",
+      "Export": {
+        "Name": { "Fn::Sub": "${AWS::StackName}:DBUsersCreated" }
+      }
+    }
+  }
+}

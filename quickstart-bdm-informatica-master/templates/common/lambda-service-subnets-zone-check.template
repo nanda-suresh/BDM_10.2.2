@@ -1,0 +1,165 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "This template is used to check if a subnet is public or private",
+  "Parameters": {
+    "VPCID": {
+      "Type": "AWS::EC2::VPC::Id",
+      "Description": "VPC ID for subnets"
+    },
+    "ServiceSubnetID1": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "Service Subnet ID 1"
+    },
+    "ServiceSubnetID2": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "Service Subnet ID 2"
+    }
+  },
+  "Resources": {
+    "CheckSubnetInfoFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "ZipFile": {
+            "Fn::Join": [
+              "\n",
+              [
+                "import json",
+                "import boto3",
+                "import cfnresponse",
+                "import sys",
+                "def lambda_handler(event, context):",
+                " responseData = {}",
+                " if event['RequestType'] == 'Delete' :",
+                "  responseData['Data'] = 0",
+                "  cfnresponse.send(event, context, cfnresponse.SUCCESS,responseData)",
+                "  sys.exit()",
+                " vpcid = event['ResourceProperties']['VPCID']",
+                " servicesubnetid1 = event['ResourceProperties']['ServiceSubnetID1']",
+                " servicesubnetid2 = event['ResourceProperties']['ServiceSubnetID2']",
+                " region = event['ResourceProperties']['Region']",
+                " serviceSubnet1azResult = subnet_az_checker(servicesubnetid1, region)",
+                " serviceSubnet2azResult = subnet_az_checker(servicesubnetid2, region)",
+                " if serviceSubnet1azResult in serviceSubnet2azResult:",
+                "  responseData['Data'] = \"Availability zone for two service subnets must not be same.\"",
+                "  cfnresponse.send(event, context, cfnresponse.FAILED,responseData,\"SubnetCheckInfo\")",
+                " else:",
+                "  responseData['Data'] = \"Subnets are in different AZ. OK to use.\"",
+                "  cfnresponse.send(event, context, cfnresponse.SUCCESS,responseData,\"SubnetCheckInfo\")",
+                "",
+                "def subnet_az_checker(subnetId, regionId):",
+                " ec2 = boto3.resource('ec2', region_name=regionId)",
+                " subnet = ec2.Subnet(subnetId)",
+                " subnet_region=subnet.availability_zone",
+                " return subnet_region"
+              ]
+            ]
+          }
+        },
+        "Handler": "index.lambda_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "LambdaExecutionRole",
+            "Arn"
+          ]
+        },
+        "Runtime": "python3.6",
+        "Timeout": "180"
+      }
+    },
+    "SubnetCheckInfo": {
+      "Type": "Custom::SubnetCheckInfo",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CheckSubnetInfoFunction",
+            "Arn"
+          ]
+        },
+        "VPCID": {
+          "Ref": "VPCID"
+        },
+        "ServiceSubnetID1": {
+          "Ref": "ServiceSubnetID1"
+        },
+        "ServiceSubnetID2": {
+          "Ref": "ServiceSubnetID2"
+        },
+        "Region": {
+          "Ref": "AWS::Region"
+        }
+      }
+    },
+    "LambdaExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": "subnetCheckPolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:*",
+                    "ec2:DescribeVpcs",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeInternetGateways",
+                    "ec2:DescribeEgressOnlyInternetGateways",
+                    "ec2:DescribeVpcEndpoints",
+                    "ec2:DescribeNatGateways",
+                    "ec2:DescribeCustomerGateways",
+                    "ec2:DescribeVpnGateways",
+                    "ec2:DescribeVpnConnections",
+                    "ec2:DescribeRouteTables",
+                    "ec2:DescribeAddresses",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeNetworkAcls",
+                    "ec2:DescribeDhcpOptions",
+                    "ec2:DescribeTags",
+                    "ec2:DescribeInstances"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "SubnetCheckInfo": {
+      "Value": {
+        "Fn::GetAtt": [
+          "SubnetCheckInfo",
+          "Data"
+        ]
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:SubnetCheckInfo"
+        }
+      },
+      "Description": "Subnet Check result"
+    }
+  }
+}

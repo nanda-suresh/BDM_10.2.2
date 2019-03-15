@@ -1,0 +1,392 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "This template creates IAM roles and profiles for use by EC2 instances.  **WARNING** This template creates Amazon EC2 instance and related resources. You will be billed for the AWS resources used if you create a stack from this template.",
+  "Parameters": {
+    "InformaticaLicenseKeyS3Bucket": {
+      "Description": "S3 bucket name for Informatica Licence. Bucket name can include numbers, lowercase letters, uppercase letters, periods (.), and hyphens (-). It cannot start or end with a hyphen (-).",
+      "Type": "String",
+      "Default": "NA"
+    },
+    "InformaticaLicenseKeyName": {
+      "Description": "Informatica key name. Include sub folder if inside sub folder of the bucket",
+      "Type": "String",
+      "Default": "NA"
+    },
+    "EMRID": {
+      "Description": "EMR Cluster ID",
+      "Type": "String",
+      "Default": ""
+    },
+    "RedshiftClusterRequired": {
+      "Description": "This is not required for domain creation. If selected No, ignore below fields under Amazon RedShift Configuration also you will not be able to run sample redshift related mappings.",
+      "Type": "String",
+      "Default": "Skip"
+    }
+  },
+  "Mappings": {
+  },
+  "Conditions": {
+    "GovCloudCondition": {
+      "Fn::Or": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "AWS::Region"
+            },
+            "us-gov-west-1"
+          ]
+        },
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "AWS::Region"
+            },
+            "us-gov-east-1"
+          ]
+        }
+      ]
+    },
+    "IsEMRRequired": {
+      "Fn::Equals": [
+        {
+          "Ref": "EMRID"
+        },
+        "<NONE>"
+      ]
+    },
+    "IsRedshiftRequired": {
+      "Fn::Equals": [
+        {
+          "Ref": "RedshiftClusterRequired"
+        },
+        "Required"
+      ]
+    },
+    "VirginiaCondition": {
+      "Fn::Equals": [
+        {
+          "Ref": "AWS::Region"
+        },
+        "us-east-1"
+      ]
+    }
+  },
+  "Resources": {
+    "InstanceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/"
+      }
+    },
+    "CloudWatchPolicies": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Action": [
+                "logs:*"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+            }
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "InstanceRole"
+          }
+        ]
+      }
+    },
+    "RolePolicies": {
+      "Type": "AWS::IAM::Policy",
+      "Properties": {
+        "PolicyName": "S3Download",
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "s3:Get*",
+                "s3:List*"
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::If": [
+                    "GovCloudCondition",
+                    { "Fn::Sub": "arn:aws-us-gov:s3:::${InformaticaLicenseKeyS3Bucket}/${InformaticaLicenseKeyName}" },
+                    { "Fn::Sub": "arn:aws:s3:::${InformaticaLicenseKeyS3Bucket}/${InformaticaLicenseKeyName}" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "InstanceRole"
+          }
+        ]
+      }
+    },
+    "InstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "InstanceRole"
+          }
+        ]
+      }
+    },
+    "RedShiftRole": {
+      "Type": "AWS::IAM::Role",
+      "Condition": "IsRedshiftRequired",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                    "redshift.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "ManagedPolicyArns": [ "arn:aws:iam::aws:policy/AmazonS3FullAccess", "arn:aws:iam::aws:policy/AWSGlueConsoleFullAccess" ],
+        "Path": "/"
+      }
+
+    },
+    "RedShiftRoleProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Condition": "IsRedshiftRequired",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "RedShiftRole"
+          }
+        ]
+      }
+    },
+    "RedShiftRolePolicy": {
+      "Type": "AWS::IAM::Policy",
+      "Condition": "IsRedshiftRequired",
+      "Properties": {
+        "PolicyName": "RedshiftPolicy",
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "*",
+              "Effect": "Allow",
+              "Resource": "*"
+            }
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "InstanceRole"
+          }
+        ]
+      }
+    },
+    "EMRRole": {
+      "Type": "AWS::IAM::Role",
+      "Condition": "IsEMRRequired",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/"
+      }
+    },
+    "EMRRoleProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Condition": "IsEMRRequired",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "EMRRole"
+          }
+        ]
+      }
+    },
+    "EMRRolePolicy": {
+      "Type": "AWS::IAM::Policy",
+      "Condition": "IsEMRRequired",
+      "Properties": {
+        "PolicyName": "EMRPolicy",
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "cloudwatch:*",
+                "dynamodb:*",
+                "ec2:Describe*",
+                "elasticmapreduce:Describe*",
+                "elasticmapreduce:ListBootstrapActions",
+                "elasticmapreduce:ListClusters",
+                "elasticmapreduce:ListInstanceGroups",
+                "elasticmapreduce:ListInstances",
+                "elasticmapreduce:ListSteps",
+                "kinesis:CreateStream",
+                "kinesis:DeleteStream",
+                "kinesis:DescribeStream",
+                "kinesis:GetRecords",
+                "kinesis:GetShardIterator",
+                "kinesis:MergeShards",
+                "kinesis:PutRecord",
+                "kinesis:SplitShard",
+                "rds:Describe*",
+                "s3:*",
+                "sdb:*",
+                "sns:*",
+                "sqs:*",
+                "glue:CreateDatabase",
+                "glue:UpdateDatabase",
+                "glue:DeleteDatabase",
+                "glue:GetDatabase",
+                "glue:GetDatabases",
+                "glue:CreateTable",
+                "glue:UpdateTable",
+                "glue:DeleteTable",
+                "glue:GetTable",
+                "glue:GetTables",
+                "glue:GetTableVersions",
+                "glue:CreatePartition",
+                "glue:BatchCreatePartition",
+                "glue:UpdatePartition",
+                "glue:DeletePartition",
+                "glue:BatchDeletePartition",
+                "glue:GetPartition",
+                "glue:GetPartitions",
+                "glue:BatchGetPartition",
+                "glue:CreateUserDefinedFunction",
+                "glue:UpdateUserDefinedFunction",
+                "glue:DeleteUserDefinedFunction",
+                "glue:GetUserDefinedFunction",
+                "glue:GetUserDefinedFunctions"
+              ],
+              "Effect": "Allow",
+              "Resource": "*"
+            }
+          ]
+        },
+        "Roles": [
+          {
+            "Ref": "InstanceRole"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "InstanceRole": {
+      "Value": {
+        "Ref": "InstanceRole"
+      },
+      "Description": "IAM Role for Informatica EC2 instances",
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InstanceRole"
+        }
+      }
+    },
+    "InstanceProfile": {
+      "Value": {
+        "Ref": "InstanceProfile"
+      },
+      "Description": "Informatica Instance Profile",
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InstanceProfile"
+        }
+      }
+    },
+    "RedShiftRole": {
+      "Condition": "IsRedshiftRequired",
+      "Value": {
+        "Ref": "RedShiftRole"
+      },
+      "Description": "IAM Role for Informatica RedShift EC2 instances",
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:RedShiftRole"
+        }
+      }
+    },
+    "RedShiftRoleProfile": {
+      "Condition": "IsRedshiftRequired",
+      "Value": {
+        "Ref": "RedShiftRoleProfile"
+      },
+      "Description": "IAM Role for Informatica RedShiftRoleProfile EC2 instances",
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:RedShiftRoleProfile"
+        }
+      }
+    },
+    "EMRRole": {
+      "Condition": "IsEMRRequired",
+      "Value": {
+        "Ref": "EMRRole"
+      },
+      "Description": "IAM Role for Informatica EMRRole EC2 instances",
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:EMRRole"
+        }
+      }
+    },
+    "EMRRoleProfile": {
+      "Condition": "IsEMRRequired",
+      "Value": {
+        "Ref": "EMRRoleProfile"
+      },
+      "Description": "IAM Role for Informatica EMRRoleProfile EC2 instances",
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:EMRRoleProfile"
+        }
+      }
+    }
+  }
+}

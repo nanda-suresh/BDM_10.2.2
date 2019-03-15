@@ -1,0 +1,225 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "This template is used to check if a subnet is public or private",
+  "Parameters": {
+    "VPCID": {
+      "Type": "AWS::EC2::VPC::Id",
+      "Description": "VPC ID for subnets"
+    },
+    "PublicSubnetID": {
+      "Type": "AWS::EC2::Subnet::Id",
+      "Description": "Public Subnet ID"
+    },
+    "DeployRemoteServer": {
+      "Type": "String",
+      "Default": "Yes",
+      "Description": "Select Yes to deploy remote windows server"
+    }
+  },
+  "Conditions": {
+    "DeployRemoteServerCnd": {
+      "Fn::Equals": [
+        {
+          "Ref": "DeployRemoteServer"
+        },
+        "Yes"
+      ]
+    }
+  },
+  "Resources": {
+    "CheckSubnetInfoFunction": {
+      "Condition": "DeployRemoteServerCnd",
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "ZipFile": {
+            "Fn::Join": [
+              "\n",
+              [
+                "import json",
+                "import boto3",
+                "import cfnresponse",
+                "import sys",
+                "subnetPublicIpAssoc=False",
+                "def lambda_handler(event, context):",
+                " responseData = {}",
+                " if event['RequestType'] == 'Delete' :",
+                "  responseData['Data'] = 0",
+                "  cfnresponse.send(event, context, cfnresponse.SUCCESS,responseData)",
+                "  sys.exit()",
+                " vpcid = event['ResourceProperties']['VPCID']",
+                " publicsubnetid = event['ResourceProperties']['PublicSubnetID']",
+                " region = event['ResourceProperties']['Region']",
+                " publicSubnetResult = subnet_checker(vpcid, publicsubnetid, region, \"public\")",
+                " if publicSubnetResult in [\"true\"]:",
+                "  global subnetPublicIpAssoc",
+                "  if subnetPublicIpAssoc in [True]:",
+                "   responseData['Data'] = \"The Public Subnet is OK to use.\"",
+                "   cfnresponse.send(event, context, cfnresponse.SUCCESS,responseData,\"SubnetCheckInfo\")",
+                "  else:",
+                "   responseData['Data'] = \"The Public subnet is attached to an Internet Gateway but not have assign public ip enabled.\"",
+                "   cfnresponse.send(event, context, cfnresponse.FAILED,responseData,\"SubnetCheckInfo\")",
+                " else:",
+                "  responseData['Data'] = \"Public Subnet must be attached to an active Internet Gateway.\"",
+                "  cfnresponse.send(event, context, cfnresponse.FAILED,responseData,\"SubnetCheckInfo\")",
+                "",
+                "def subnet_checker(vpcId, subnetId, regionId, subnetType):",
+                " vpcid = vpcId",
+                " subnetid = subnetId",
+                " region = regionId",
+                " subnettype = subnetType",
+                " continue_execution = \"true\"",
+                " return_result = \"false\"",
+                " ec2 = boto3.resource('ec2', region_name=region)",
+                " client = boto3.client('ec2')",
+                " vpc = ec2.Vpc(id=vpcid)",
+                " routetables = vpc.route_tables.all()",
+                " for routetable in routetables:",
+                "  route_table = ec2.RouteTable(routetable.id)",
+                "  routetable_association_attributes = route_table.associations_attribute",
+                "  if continue_execution in [\"false\"]:",
+                "   break",
+                "  for raa in routetable_association_attributes:",
+                "   raa_strng = str(raa)",
+                "   raa_strng = json.dumps(raa)",
+                "   raa_strng_json_obj = json.loads(raa_strng)",
+                "   if continue_execution in [\"false\"]:",
+                "     break",
+                "   if 'SubnetId' in raa_strng_json_obj:",
+                "     subnet_id = raa_strng_json_obj[\"SubnetId\"]",
+                "     if subnet_id in [subnetid]:",
+                "       continue_execution = \"false\"",
+                "       routes_attributes = route_table.routes_attribute",
+                "       for ra in routes_attributes:",
+                "        ra_strng = str(ra)",
+                "        ra_strng = json.dumps(ra)",
+                "        gateway=\"\"",
+                "        ra_strng_json_obj = json.loads(ra_strng)",
+                "        if \"GatewayId\" in ra_strng_json_obj:",
+                "         gateway = ra_strng_json_obj[\"GatewayId\"]",
+                "        state = ra_strng_json_obj[\"State\"]",
+                "        if \"igw-\" in gateway:",
+                "         if subnettype in [\"public\"]:",
+                "          if state in [\"active\"]:",
+                "           return_result = \"true\"",
+                "           subnet = ec2.Subnet(subnetId)",
+                "           global subnetPublicIpAssoc",
+                "           subnetPublicIpAssoc=subnet.map_public_ip_on_launch",
+                "       break",
+                " return return_result"
+              ]
+            ]
+          }
+        },
+        "Handler": "index.lambda_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "LambdaExecutionRole",
+            "Arn"
+          ]
+        },
+        "Runtime": "python3.6",
+        "Timeout": "180"
+      }
+    },
+    "SubnetCheckInfo": {
+      "Condition": "DeployRemoteServerCnd",
+      "Type": "Custom::SubnetCheckInfo",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CheckSubnetInfoFunction",
+            "Arn"
+          ]
+        },
+        "VPCID": {
+          "Ref": "VPCID"
+        },
+        "PublicSubnetID": {
+          "Ref": "PublicSubnetID"
+        },
+        "Region": {
+          "Ref": "AWS::Region"
+        }
+      }
+    },
+    "LambdaExecutionRole": {
+      "Condition": "DeployRemoteServerCnd",
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": "subnetCheckPolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:*",
+                    "ec2:DescribeVpcs",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeInternetGateways",
+                    "ec2:DescribeEgressOnlyInternetGateways",
+                    "ec2:DescribeVpcEndpoints",
+                    "ec2:DescribeNatGateways",
+                    "ec2:DescribeCustomerGateways",
+                    "ec2:DescribeVpnGateways",
+                    "ec2:DescribeVpnConnections",
+                    "ec2:DescribeRouteTables",
+                    "ec2:DescribeAddresses",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeNetworkAcls",
+                    "ec2:DescribeDhcpOptions",
+                    "ec2:DescribeTags",
+                    "ec2:DescribeInstances"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "SubnetCheckInfo": {
+      "Value": {
+        "Fn::If": [
+          "DeployRemoteServerCnd",
+          {
+            "Fn::GetAtt": [
+              "SubnetCheckInfo",
+              "Data"
+            ]
+          },
+          "Subnet check not required."
+        ]
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:SubnetCheckInfo"
+        }
+      },
+      "Description": "Subnet Check result"
+    }
+  }
+}

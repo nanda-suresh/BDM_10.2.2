@@ -1,0 +1,158 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "This template is used to check if a subnet is public or private",
+  "Parameters": {
+    "VPCID": {
+      "Type": "String",
+      "Description": "VPC ID for subnets"
+    },
+    "PublicSubnetID": {
+      "Type": "String",
+      "Description": "Public Subnet ID"
+    },
+    "ServiceSubnetID1": {
+      "Type": "String",
+      "Description": "Service Subnet ID 1"
+    },
+    "ServiceSubnetID2": {
+      "Type": "String",
+      "Description": "Service Subnet ID 2"
+    },
+    "DeployRemoteServer": {
+      "Type": "String",
+      "Description": "Select Yes to deploy remote windows server"
+    }
+  },
+  "Resources": {
+    "CheckSubnetInfoFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Join": [
+              "-",
+              [
+                "infa-aws-resources",
+                {
+                  "Ref": "AWS::Region"
+                }
+              ]
+            ]
+          },
+          "S3Key": {
+            "Fn::Sub": "common/SubnetCheckV2.zip"
+          }
+        },
+        "Handler": "index.lambda_handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "LambdaExecutionRole",
+            "Arn"
+          ]
+        },
+        "Runtime": "python3.6",
+        "Timeout": "180"
+      }
+    },
+    "SubnetCheckInfo": {
+      "Type": "Custom::SubnetCheckInfo",
+      "Properties": {
+        "ServiceToken": {
+          "Fn::GetAtt": [
+            "CheckSubnetInfoFunction",
+            "Arn"
+          ]
+        },
+        "VPCID": {
+          "Ref": "VPCID"
+        },
+        "PublicSubnetID": {
+          "Ref": "PublicSubnetID"
+        },
+        "ServiceSubnetID1": {
+          "Ref": "ServiceSubnetID1"
+        },
+        "ServiceSubnetID2": {
+          "Ref": "ServiceSubnetID2"
+        },
+        "Region": {
+          "Ref": "AWS::Region"
+        },
+        "DeployRemoteServer": {
+          "Ref": "DeployRemoteServer"
+        }
+      }
+    },
+    "LambdaExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": "subnetCheckPolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:*",
+                    "ec2:DescribeVpcs",
+                    "ec2:DescribeSubnets",
+                    "ec2:DescribeInternetGateways",
+                    "ec2:DescribeEgressOnlyInternetGateways",
+                    "ec2:DescribeVpcEndpoints",
+                    "ec2:DescribeNatGateways",
+                    "ec2:DescribeCustomerGateways",
+                    "ec2:DescribeVpnGateways",
+                    "ec2:DescribeVpnConnections",
+                    "ec2:DescribeRouteTables",
+                    "ec2:DescribeAddresses",
+                    "ec2:DescribeSecurityGroups",
+                    "ec2:DescribeNetworkAcls",
+                    "ec2:DescribeDhcpOptions",
+                    "ec2:DescribeTags",
+                    "ec2:DescribeInstances"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "SubnetCheckInfo": {
+      "Value": {
+        "Fn::GetAtt": [
+          "SubnetCheckInfo",
+          "Data"
+        ]
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:SubnetCheckInfo"
+        }
+      },
+      "Description": "Subnet Check result"
+    }
+  }
+}

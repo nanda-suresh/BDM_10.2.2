@@ -1,0 +1,1440 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Create Informatica EIC Elastic IPS and Hadoop Nodes, infa server, InfaDB Security Groups",
+  "Parameters": {
+    "VPCID": {
+      "Description": "VPC to which security groups belong",
+      "Type": "AWS::EC2::VPC::Id"
+    },
+    "JumpServerPublicSubnet": {
+      "Description": "Public subnet for Jump Server",
+      "Type": "AWS::EC2::Subnet::Id"
+    },
+    "PublicSubnet": {
+      "Description": "Public subnet for Infa Server and IHS Nodes",
+      "Type": "AWS::EC2::Subnet::Id"
+    },
+    "IPAddressRange": {
+      "Description": "The IP address range that can be used to access the infa admin, cluster servers using SSH.",
+      "Type": "String"
+    },
+    "ClusterSize": {
+      "Description": "Size of the EIC cluster",
+      "Type": "String",
+      "Default": "Small"
+    },
+    "DeployAllInPvtSubnet": {
+      "Type": "String",
+      "Default": "Yes",
+      "Description": "Select Yes to deploy IHS cluster nodes, Informatica server in private subnet"
+    },
+    "DeployRemoteServer": {
+      "Type": "String",
+      "Default": "No",
+      "Description": "Select Yes to deploy Remote windows server."
+    },
+    "InfaProduct": {
+      "Description": "Infa Product code",
+      "Type": "String"
+    },
+     "EMRID": {
+      "Description": "EMR Cluster ID",
+      "Type": "String"
+    },
+	"EMRClusterRequired": {
+      "Description": "EMR Cluster is required",
+      "Type": "String"
+    },
+    "RedshiftRequired": {
+      "Description": "Redshift Cluster is required",
+      "Type": "String",
+      "Default": "No"
+    }
+  },
+  "Mappings": {
+  },
+  "Conditions": {
+    "ProductBDM": {
+      "Fn::Equals": [
+        {
+          "Ref": "InfaProduct"
+        },
+        "BDM"
+      ]
+    },
+    "ProductEIC": {
+      "Fn::Equals": [
+        {
+          "Ref": "InfaProduct"
+        },
+        "EIC"
+      ]
+    },
+     "EMRSelected": {
+    "Fn::Or": [
+      {
+        "Fn::Equals": [
+          "Yes",
+          { "Ref": "EMRClusterRequired" }
+        ]
+      },
+      {
+        "Fn::Equals": [
+          "<NONE>",
+          { "Ref": "EMRID" }
+        ]
+      }
+    ]
+  },
+    "RedshiftSelected": {
+      "Fn::Equals": [
+        {
+          "Ref": "RedshiftRequired"
+        },
+        "Yes"
+      ]
+    },
+    "SingleNodeAndEICCnd": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "ClusterSize"
+            },
+            "Small"
+          ]
+        },
+        {
+          "Condition": "ProductEIC"
+        }
+      ]
+    },
+    "CreateMediumClusterAndEICCnd": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "ClusterSize"
+            },
+            "Medium"
+          ]
+        },
+        {
+          "Condition": "ProductEIC"
+        }
+      ]
+    },
+    "CreateLargeClusterAndEICCnd": {
+      "Fn::And": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "ClusterSize"
+            },
+            "Large"
+          ]
+        },
+        {
+          "Condition": "ProductEIC"
+        }
+      ]
+    },
+    "MultipleNodeEICCnd": {
+      "Fn::Or": [
+        {
+          "Condition": "CreateMediumClusterAndEICCnd"
+        },
+        {
+          "Condition": "CreateLargeClusterAndEICCnd"
+        }
+      ]
+    },
+    "DeployInPublicCnd": {
+      "Fn::Equals": [
+        {
+          "Ref": "DeployAllInPvtSubnet"
+        },
+        "No"
+      ]
+    },
+    "DeployInPrivateCnd": {
+      "Fn::Equals": [
+        {
+          "Ref": "DeployAllInPvtSubnet"
+        },
+        "Yes"
+      ]
+    },
+    "CreateMediumClusterEICAndDeployInPublicCnd": {
+      "Fn::And": [
+        {
+          "Condition": "CreateMediumClusterAndEICCnd"
+        },
+        {
+          "Condition": "DeployInPublicCnd"
+        }
+      ]
+    },
+    "CreateLargeClusterEICAndDeployInPublicCnd": {
+      "Fn::And": [
+        {
+          "Condition": "CreateLargeClusterAndEICCnd"
+        },
+        {
+          "Condition": "DeployInPublicCnd"
+        }
+      ]
+    },
+    "MultipleNodeEICAndDeployInPublicCnd": {
+      "Fn::And": [
+        {
+          "Condition": "MultipleNodeEICCnd"
+        },
+        {
+          "Condition": "DeployInPublicCnd"
+        }
+      ]
+    },
+    "DeployInPublicAndEICCnd": {
+      "Fn::And": [
+        {
+          "Condition": "DeployInPublicCnd"
+        },
+        {
+          "Condition": "ProductEIC"
+        }
+      ]
+    },
+    "DeployInPrivateAndEICCnd": {
+      "Fn::And": [
+        {
+          "Condition": "DeployInPrivateCnd"
+        },
+        {
+          "Condition": "ProductEIC"
+        }
+      ]
+    },
+    "DeployInPrivateAndBDMCnd": {
+      "Fn::And": [
+        {
+          "Condition": "DeployInPrivateCnd"
+        },
+        {
+          "Condition": "ProductBDM"
+        }
+      ]
+    },
+    "DeployRemoteServerCnd": {
+      "Fn::Equals": [
+        {
+          "Ref": "DeployRemoteServer"
+        },
+        "Yes"
+      ]
+    },
+    "DeployRemoteServerAndEICCnd": {
+      "Fn::And": [
+        {
+          "Condition": "DeployRemoteServerCnd"
+        },
+        {
+          "Condition": "ProductEIC"
+        }
+      ]
+    },
+    "DeployRemoteServerAndBDMCnd": {
+      "Fn::And": [
+        {
+          "Condition": "DeployRemoteServerCnd"
+        },
+        {
+          "Condition": "ProductBDM"
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "ElasticIPNode1": {
+      "Type": "AWS::EC2::EIP",
+      "Condition": "DeployInPublicAndEICCnd",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "ElasticIPNode2": {
+      "Type": "AWS::EC2::EIP",
+      "Condition": "MultipleNodeEICAndDeployInPublicCnd",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "ElasticIPNode3": {
+      "Type": "AWS::EC2::EIP",
+      "Condition": "MultipleNodeEICAndDeployInPublicCnd",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "ElasticIPNode4": {
+      "Type": "AWS::EC2::EIP",
+      "Condition": "CreateLargeClusterEICAndDeployInPublicCnd",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "ElasticIPNode5": {
+      "Type": "AWS::EC2::EIP",
+      "Condition": "CreateLargeClusterEICAndDeployInPublicCnd",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "ElasticIPNode6": {
+      "Type": "AWS::EC2::EIP",
+      "Condition": "CreateLargeClusterEICAndDeployInPublicCnd",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "Node1NetInterface": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Condition": "ProductEIC",
+      "Properties": {
+        "Description": "Interface for Node 1 traffic",
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        },
+        "GroupSet": [
+          {
+            "Ref": "AdditionalICSSecurityGroup"
+          },
+          {
+            "Ref": "InternalAdditionalICSSecurityGroup"
+          }
+        ],
+        "SourceDestCheck": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Informatica Node 1 Network Interface"
+          }
+        ]
+      }
+    },
+    "Node2NetInterface": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Condition": "MultipleNodeEICCnd",
+      "Properties": {
+        "Description": "Interface for Node 2 traffic",
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        },
+        "GroupSet": [
+          {
+            "Ref": "AdditionalICSSecurityGroup"
+          },
+          {
+            "Ref": "InternalAdditionalICSSecurityGroup"
+          }
+        ],
+        "SourceDestCheck": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Informatica Node 2 Network Interface"
+          }
+        ]
+      }
+    },
+    "Node3NetInterface": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Condition": "MultipleNodeEICCnd",
+      "Properties": {
+        "Description": "Interface for Node 3 traffic",
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        },
+        "GroupSet": [
+          {
+            "Ref": "AdditionalICSSecurityGroup"
+          },
+          {
+            "Ref": "InternalAdditionalICSSecurityGroup"
+          }
+        ],
+        "SourceDestCheck": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Informatica Node 3 Network Interface"
+          }
+        ]
+      }
+    },
+    "Node4NetInterface": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Condition": "CreateLargeClusterAndEICCnd",
+      "Properties": {
+        "Description": "Interface for Node 4 traffic",
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        },
+        "GroupSet": [
+          {
+            "Ref": "AdditionalICSSecurityGroup"
+          },
+          {
+            "Ref": "InternalAdditionalICSSecurityGroup"
+          }
+        ],
+        "SourceDestCheck": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Informatica Node 4 Network Interface"
+          }
+        ]
+      }
+    },
+    "Node5NetInterface": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Condition": "CreateLargeClusterAndEICCnd",
+      "Properties": {
+        "Description": "Interface for Node 5 traffic",
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        },
+        "GroupSet": [
+          {
+            "Ref": "AdditionalICSSecurityGroup"
+          },
+          {
+            "Ref": "InternalAdditionalICSSecurityGroup"
+          }
+        ],
+        "SourceDestCheck": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Informatica Node 5 Network Interface"
+          }
+        ]
+      }
+    },
+    "Node6NetInterface": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Condition": "CreateLargeClusterAndEICCnd",
+      "Properties": {
+        "Description": "Interface for Node 6 traffic",
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        },
+        "GroupSet": [
+          {
+            "Ref": "AdditionalICSSecurityGroup"
+          },
+          {
+            "Ref": "InternalAdditionalICSSecurityGroup"
+          }
+        ],
+        "SourceDestCheck": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Informatica Node 6 Network Interface"
+          }
+        ]
+      }
+    },
+    "Node1IPAssoc": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Condition": "DeployInPublicAndEICCnd",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "ElasticIPNode1",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {
+          "Ref": "Node1NetInterface"
+        }
+      }
+    },
+    "Node2IPAssoc": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Condition": "MultipleNodeEICAndDeployInPublicCnd",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "ElasticIPNode2",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {
+          "Ref": "Node2NetInterface"
+        }
+      }
+    },
+    "Node3IPAssoc": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Condition": "MultipleNodeEICAndDeployInPublicCnd",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "ElasticIPNode3",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {
+          "Ref": "Node3NetInterface"
+        }
+      }
+    },
+    "Node4IPAssoc": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Condition": "CreateLargeClusterEICAndDeployInPublicCnd",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "ElasticIPNode4",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {
+          "Ref": "Node4NetInterface"
+        }
+      }
+    },
+    "Node5IPAssoc": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Condition": "CreateLargeClusterEICAndDeployInPublicCnd",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "ElasticIPNode5",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {
+          "Ref": "Node5NetInterface"
+        }
+      }
+    },
+    "Node6IPAssoc": {
+      "Type": "AWS::EC2::EIPAssociation",
+      "Condition": "CreateLargeClusterEICAndDeployInPublicCnd",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "ElasticIPNode6",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {
+          "Ref": "Node6NetInterface"
+        }
+      }
+    },
+    "RemoteAccessJumpServerSecurityGroup": {
+      "Condition": "DeployRemoteServerCnd",
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Informatica Jump Server Access",
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "3389",
+            "ToPort": "3389",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          }
+        ]
+      }
+    },
+    "AdditionalICSSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "ProductEIC",
+      "Properties": {
+        "GroupDescription": "Allowing all ports for all IPs incoming and outgoing",
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8080",
+            "ToPort": "8080",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8042",
+            "ToPort": "8042",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8088",
+            "ToPort": "8088",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8090",
+            "ToPort": "8090",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "50070",
+            "ToPort": "50070",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "19888",
+            "ToPort": "19888",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "-1",
+            "FromPort": "-1",
+            "ToPort": "-1",
+            "SourceSecurityGroupId": {
+              "Ref": "InternalAdditionalICSSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "-1",
+            "FromPort": "-1",
+            "ToPort": "-1",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainEICSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "-1",
+            "FromPort": "-1",
+            "ToPort": "-1",
+            "SourceSecurityGroupId": {
+              "Fn::If": [
+                "DeployRemoteServerAndEICCnd",
+                {
+                  "Ref": "RemoteAccessJumpServerSecurityGroup"
+                },
+                {
+                  "Ref": "InfaDomainEICSecurityGroup"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "InternalAdditionalICSSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "ProductEIC",
+      "Properties": {
+        "GroupDescription": "To enable all ports between hadoop machines only.",
+        "VpcId": {
+          "Ref": "VPCID"
+        }
+      }
+    },
+    "InfaDBSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Informatica domain access to RDS DB",
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "1521",
+            "ToPort": "1521",
+            "SourceSecurityGroupId": {
+              "Fn::If": [
+                "ProductEIC",
+                {
+                  "Ref": "InfaDomainEICSecurityGroup"
+                },
+                {
+                  "Ref": "InfaDomainBDMSecurityGroup"
+                }
+              ]
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "1521",
+            "ToPort": "1521",
+            "SourceSecurityGroupId": {
+              "Fn::If": [
+                "ProductEIC",
+                {
+                  "Ref": "InternalAdditionalICSSecurityGroup"
+                },
+                {
+                  "Fn::If": [
+                    "EMRSelected",
+                    {
+                      "Ref": "InfaDomainEMRSecurityGroup"
+                    },
+                    {
+                      "Ref": "InfaDomainBDMSecurityGroup"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "1521",
+            "ToPort": "1521",
+            "SourceSecurityGroupId": {
+              "Fn::If": [
+                "DeployRemoteServerAndEICCnd",
+                {
+                  "Ref": "RemoteAccessJumpServerSecurityGroup"
+                },
+                {
+                  "Fn::If": [
+                    "DeployRemoteServerAndBDMCnd",
+                    {
+                      "Ref": "RemoteAccessJumpServerSecurityGroup"
+                    },
+                    {
+                      "Fn::If": [
+                        "ProductEIC",
+                        {
+                          "Ref": "InfaDomainEICSecurityGroup"
+                        },
+                        {
+                          "Ref": "InfaDomainBDMSecurityGroup"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "RedShiftSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Condition": "RedshiftSelected",
+      "Properties": {
+        "GroupDescription": "Security group",
+        "SecurityGroupIngress": [
+          {
+            "FromPort": "5439",
+            "ToPort": "5439",
+            "IpProtocol": "tcp",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainBDMSecurityGroup"
+            }
+          },
+          {
+            "FromPort": "5439",
+            "ToPort": "5439",
+            "IpProtocol": "tcp",
+            "SourceSecurityGroupId": {
+              "Fn::If": [
+                "EMRSelected",
+                {
+                  "Ref": "InfaDomainEMRSecurityGroup"
+                },
+                {
+                  "Ref": "InfaDomainBDMSecurityGroup"
+                }
+              ]
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "5439",
+            "ToPort": "5439",
+            "SourceSecurityGroupId": {
+              "Fn::If": [
+                "DeployRemoteServerAndBDMCnd",
+                {
+                  "Ref": "RemoteAccessJumpServerSecurityGroup"
+                },
+                {
+                  "Ref": "InfaDomainBDMSecurityGroup"
+                }
+              ]
+            }
+          }
+        ],
+        "VpcId": {
+          "Ref": "VPCID"
+        }
+      }
+    },
+    "InfaDomainEMRSecurityGroup": {
+      "Condition": "EMRSelected",
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable Informatica Domain Access in EMR",
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8020",
+            "ToPort": "8020",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainBDMSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8032",
+            "ToPort": "8032",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainBDMSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9083",
+            "ToPort": "9083",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainBDMSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "10000",
+            "ToPort": "10000",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainBDMSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "12300",
+            "ToPort": "12600",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainBDMSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8300",
+            "ToPort": "8300",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainBDMSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "50010",
+            "ToPort": "50010",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainBDMSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9090",
+            "ToPort": "9090",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainBDMSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "10020",
+            "ToPort": "10020",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainBDMSecurityGroup"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9080",
+            "ToPort": "9080",
+            "SourceSecurityGroupId": {
+              "Ref": "InfaDomainBDMSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "RemoteAccessEMRSecurityGroup": {
+      "Condition": "EMRSelected",
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable Informatica Domain Access in EMR",
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8088",
+            "ToPort": "8088",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9083",
+            "ToPort": "9083",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "10000",
+            "ToPort": "10000",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "-1",
+            "FromPort": "-1",
+            "ToPort": "-1",
+            "SourceSecurityGroupId": {
+              "Fn::If": [
+                "DeployRemoteServerAndBDMCnd",
+                {
+                  "Ref": "RemoteAccessJumpServerSecurityGroup"
+                },
+                {
+                  "Ref": "InfaDomainBDMSecurityGroup"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "InfaDomainBDMSecurityGroup": {
+      "Condition": "ProductBDM",
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable RDP and within VPC traffic",
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "5000",
+            "ToPort": "7000",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "7080",
+            "ToPort": "7080",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          }
+        ]
+      }
+    },
+    "InfaDomainEICSecurityGroup": {
+      "Condition": "ProductEIC",
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable Informatica Domain Server Access",
+        "VpcId": {
+          "Ref": "VPCID"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "6005",
+            "ToPort": "6009",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "6014",
+            "ToPort": "6114",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "6805",
+            "ToPort": "6805",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "8090",
+            "ToPort": "8090",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "udp",
+            "FromPort": "1434",
+            "ToPort": "1434",
+            "CidrIp": {
+              "Ref": "IPAddressRange"
+            }
+          },
+          {
+            "IpProtocol": "-1",
+            "FromPort": "-1",
+            "ToPort": "-1",
+            "SourceSecurityGroupId": {
+              "Ref": "InternalAdditionalICSSecurityGroup"
+            }
+          }
+        ]
+      }
+    },
+    "InfaDomainBDMSecurityGroupIngress": {
+      "Condition": "DeployRemoteServerAndBDMCnd",
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "IpProtocol": "-1",
+        "FromPort": "-1",
+        "ToPort": "-1",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "RemoteAccessJumpServerSecurityGroup",
+            "GroupId"
+          ]
+        },
+        "GroupId": {
+          "Fn::GetAtt": [
+            "InfaDomainBDMSecurityGroup",
+            "GroupId"
+          ]
+        }
+      }
+    },
+    "RemoteAccessJumpServerSecurityGroupBDMIngress": {
+      "Condition": "DeployRemoteServerAndBDMCnd",
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "IpProtocol": "-1",
+        "FromPort": "-1",
+        "ToPort": "-1",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "InfaDomainBDMSecurityGroup",
+            "GroupId"
+          ]
+        },
+        "GroupId": {
+          "Fn::GetAtt": [
+            "RemoteAccessJumpServerSecurityGroup",
+            "GroupId"
+          ]
+        }
+      }
+    },
+    "InfaDomainEICSecurityGroupIngress": {
+      "Condition": "DeployRemoteServerAndEICCnd",
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "IpProtocol": "-1",
+        "FromPort": "-1",
+        "ToPort": "-1",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "RemoteAccessJumpServerSecurityGroup",
+            "GroupId"
+          ]
+        },
+        "GroupId": {
+          "Fn::GetAtt": [
+            "InfaDomainEICSecurityGroup",
+            "GroupId"
+          ]
+        }
+      }
+    },
+    "RemoteAccessJumpServerSecurityGroupEICIngress": {
+      "Condition": "DeployRemoteServerAndEICCnd",
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "IpProtocol": "-1",
+        "FromPort": "-1",
+        "ToPort": "-1",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [
+            "InfaDomainEICSecurityGroup",
+            "GroupId"
+          ]
+        },
+        "GroupId": {
+          "Fn::GetAtt": [
+            "RemoteAccessJumpServerSecurityGroup",
+            "GroupId"
+          ]
+        }
+      }
+    },
+    "AdministrationServerEIP": {
+      "Condition": "DeployInPublicCnd",
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "AdministrationServerNetInterface": {
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "Description": "Interface for Administrator Server traffic",
+        "SubnetId": {
+          "Ref": "PublicSubnet"
+        },
+        "GroupSet": [
+          {
+            "Fn::If": [
+              "ProductEIC",
+              {
+                "Ref": "InfaDomainEICSecurityGroup"
+              },
+              {
+                "Ref": "InfaDomainBDMSecurityGroup"
+              }
+            ]
+          }
+        ],
+        "SourceDestCheck": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Informatica Domain Network Interface"
+          }
+        ]
+      }
+    },
+    "AdministrationServerAssoc": {
+      "Condition": "DeployInPublicCnd",
+      "Type": "AWS::EC2::EIPAssociation",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "AdministrationServerEIP",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {
+          "Ref": "AdministrationServerNetInterface"
+        }
+      }
+    },
+    "JumpServerEIP": {
+      "Condition": "DeployRemoteServerCnd",
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "JumpServerNetInterface": {
+      "Condition": "DeployRemoteServerCnd",
+      "Type": "AWS::EC2::NetworkInterface",
+      "Properties": {
+        "Description": "Interface for Jump Server traffic",
+        "SubnetId": {
+          "Ref": "JumpServerPublicSubnet"
+        },
+        "GroupSet": [
+          {
+            "Ref": "RemoteAccessJumpServerSecurityGroup"
+          }
+        ],
+        "SourceDestCheck": "true",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Jump Server Network Interface"
+          }
+        ]
+      }
+    },
+    "JumpServerAssoc": {
+      "Condition": "DeployRemoteServerCnd",
+      "Type": "AWS::EC2::EIPAssociation",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "JumpServerEIP",
+            "AllocationId"
+          ]
+        },
+        "NetworkInterfaceId": {
+          "Ref": "JumpServerNetInterface"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "InfaDBSecurityGroup": {
+      "Description": "Informatica DB security group.",
+      "Value": {
+        "Ref": "InfaDBSecurityGroup"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InfaDBSecurityGroup"
+        }
+      }
+    },
+    "AdditionalICSSecurityGroup": {
+      "Condition": "ProductEIC",
+      "Description": "Additional IHS security group.",
+      "Value": {
+        "Ref": "AdditionalICSSecurityGroup"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:AdditionalICSSecurityGroup"
+        }
+      }
+    },
+    "InternalAdditionalICSSecurityGroup": {
+      "Condition": "ProductEIC",
+      "Description": "Additional IHS security group.",
+      "Value": {
+        "Ref": "InternalAdditionalICSSecurityGroup"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InternalAdditionalICSSecurityGroup"
+        }
+      }
+    },
+    "InfaDomainSecurityGroup": {
+      "Description": "Infa Domain security group.",
+      "Value": {
+        "Fn::If": [
+          "ProductEIC",
+          {
+            "Ref": "InfaDomainEICSecurityGroup"
+          },
+          {
+            "Ref": "InfaDomainBDMSecurityGroup"
+          }
+        ]
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InfaDomainSecurityGroup"
+        }
+      }
+    },
+    "Node1NetInterface": {
+      "Condition": "ProductEIC",
+      "Description": "IHS Node1 Network Interface",
+      "Value": {
+        "Ref": "Node1NetInterface"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:Node1NetInterface"
+        }
+      }
+    },
+    "Node2NetInterface": {
+      "Condition": "MultipleNodeEICCnd",
+      "Description": "IHS Node2 Network Interface",
+      "Value": {
+        "Ref": "Node2NetInterface"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:Node2NetInterface"
+        }
+      }
+    },
+    "Node3NetInterface": {
+      "Condition": "MultipleNodeEICCnd",
+      "Description": "IHS Node3 Network Interface",
+      "Value": {
+        "Ref": "Node3NetInterface"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:Node3NetInterface"
+        }
+      }
+    },
+    "Node4NetInterface": {
+      "Condition": "CreateLargeClusterAndEICCnd",
+      "Description": "IHS Node4 Network Interface",
+      "Value": {
+        "Ref": "Node4NetInterface"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:Node4NetInterface"
+        }
+      }
+    },
+    "Node5NetInterface": {
+      "Condition": "CreateLargeClusterAndEICCnd",
+      "Description": "IHS Node5 Network Interface",
+      "Value": {
+        "Ref": "Node5NetInterface"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:Node5NetInterface"
+        }
+      }
+    },
+    "Node6NetInterface": {
+      "Condition": "CreateLargeClusterAndEICCnd",
+      "Description": "IHS Node6 Network Interface",
+      "Value": {
+        "Ref": "Node6NetInterface"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:Node6NetInterface"
+        }
+      }
+    },
+    "AdministrationServerNetInterface": {
+      "Description": "Administrator Network Interface",
+      "Value": {
+        "Ref": "AdministrationServerNetInterface"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:AdministrationServerNetInterface"
+        }
+      }
+    },
+    "RedShiftSecurityGroup": {
+      "Condition": "RedshiftSelected",
+      "Description": "Informatica DB security group.",
+      "Value": {
+        "Ref": "RedShiftSecurityGroup"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:RedShiftSecurityGroup"
+        }
+      }
+    },
+    "InfaDomainEMRSecurityGroup": {
+      "Condition": "EMRSelected",
+      "Description": "Informatica DB security group.",
+      "Value": {
+        "Ref": "InfaDomainEMRSecurityGroup"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InfaDomainEMRSecurityGroup"
+        }
+      }
+    },
+    "RemoteAccessEMRSecurityGroup": {
+      "Condition": "EMRSelected",
+      "Description": "Informatica DB security group.",
+      "Value": {
+        "Ref": "RemoteAccessEMRSecurityGroup"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:RemoteAccessEMRSecurityGroup"
+        }
+      }
+    },
+    "JumpServerNetInterface": {
+      "Condition": "DeployRemoteServerCnd",
+      "Description": "Jump Server Network Interface",
+      "Value": {
+        "Ref": "JumpServerNetInterface"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:JumpServerNetInterface"
+        }
+      }
+    },
+    "RemoteAccessJumpServerSecurityGroup": {
+      "Condition": "DeployRemoteServerCnd",
+      "Description": "Jump server security group.",
+      "Value": {
+        "Ref": "RemoteAccessJumpServerSecurityGroup"
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:RemoteAccessJumpServerSecurityGroup"
+        }
+      }
+    }
+  }
+}

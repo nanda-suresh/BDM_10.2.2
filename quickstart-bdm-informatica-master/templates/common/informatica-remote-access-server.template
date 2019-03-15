@@ -1,0 +1,170 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Informatica Remote access server. This template creates Amazon EC2 instance and related resources. You will be billed for the AWS resources used if you create a stack from this template. QS(5024)",
+  "Parameters": {
+    "KeyName": {
+      "Description": "Name of an existing Amazon EC2 keypair. You must specify this option to enable RDP access to Informatica Jump server instance",
+      "Type": "AWS::EC2::KeyPair::KeyName"
+    },
+    "JumpServerNetInterface": {
+      "Type": "String",
+      "Description": "Interface ID for Administrator Server"
+    }
+  },
+  "Rules": {
+  },
+  "Conditions": {
+  },
+  "Mappings": {
+    "AWSAMIRegionMap": {
+      "AMI": {
+        "INFARMTSRVRHVM": "Remote Access Windows server on AWS"
+      },
+      "eu-north-1": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "ap-south-1": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "eu-west-3": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "eu-west-2": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "eu-west-1": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "ap-northeast-2": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "ap-northeast-1": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "sa-east-1": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "ca-central-1": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "ap-southeast-1": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "ap-southeast-2": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "eu-central-1": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "us-east-1": {
+        "INFARMTSRVRHVM": "ami-0c17c2ccada190dcd"
+      },
+      "us-east-2": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "us-west-1": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "us-west-2": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "us-gov-west-1": {
+        "INFARMTSRVRHVM": "TBD"
+      },
+      "us-gov-east-1": {
+        "INFARMTSRVRHVM": "TBD"
+      }
+    }
+  },
+  "Resources": {
+    "RemoteAccessServer": {
+      "Type": "AWS::EC2::Instance",
+      "Metadata": {
+      },
+      "Properties": {
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSAMIRegionMap",
+            {
+              "Ref": "AWS::Region"
+            },
+            "INFARMTSRVRHVM"
+          ]
+        },
+        "InstanceType": "m5.large",
+        "KeyName": {
+          "Ref": "KeyName"
+        },
+        "InstanceInitiatedShutdownBehavior": "stop",
+        "NetworkInterfaces": [
+          {
+            "NetworkInterfaceId": {
+              "Ref": "JumpServerNetInterface"
+            },
+            "DeviceIndex": "0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "",
+                [
+                  "InformaticaDomainRemoteAccessServer-",
+                  {
+                    "Ref": "AWS::StackName"
+                  }
+                ]
+              ]
+            }
+          }
+        ],
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "<powershell>\n",
+                "echo \"running cfn signal\" \n",
+                "cfn-signal -e 0 ",
+                " --stack ",
+                {
+                  "Ref": "AWS::StackId"
+                },
+                " --resource RemoteAccessServer ",
+                " --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                "\n",
+                "</powershell>"
+              ]
+            ]
+          }
+        }
+      },
+      "CreationPolicy": {
+        "ResourceSignal": {
+          "Timeout": "PT30M"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "RemoteServerPublicDNS": {
+      "Description": "Remote Access server Public DNS",
+      "Value": {
+        "Fn::GetAtt": [
+          "RemoteAccessServer",
+          "PublicDnsName"
+        ]
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:RemoteServerPublicDNS"
+        }
+      }
+    }
+  }
+}
