@@ -1,0 +1,1426 @@
+{  
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Informatica Big Data Management v10.2.2. This template creates Amazon EC2 instances, Elastic IPs, EMR Clusters, RDS, Redshift and related resources. You will be billed for the AWS resources used if you create a stack from this template QS(5014).",
+  "Metadata": {
+    "AWS::CloudFormation::Interface": {
+      "ParameterGroups": [
+        {
+          "Label": {
+            "default": "Network Configuration"
+          },
+          "Parameters": [
+          "VPCID",
+          "PrivateSubnetID1",
+          "PrivateSubnetID2",
+          "IPAddressRange"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Informatica Remote Acess Server"
+          },
+          "Parameters": [ 
+            "DeployRemoteServer",
+            "PublicSubnetID"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Amazon EC2 Configuration"
+          },
+          "Parameters": [
+            "KeyPairName"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Informatica Big Data Management Configuration"
+          },
+          "Parameters": [
+            "InformaticaDomainUsername",
+            "InformaticaDomainPassword",
+            "InformaticaDomainPasswordConfirm",
+            "InformaticaLicenseKeyS3Bucket",
+            "InformaticaLicenseKeyName"
+       ]
+        },
+        {
+          "Label": {
+            "default": "Amazon RDS Configuration"
+          },
+          "Parameters": [           
+            "DBPassword",
+            "ConfirmDBPassword",
+            "SelectMultiAZ"
+          ]
+        },
+        {
+          "Label": {
+            "default": "Amazon EMR Configuration"
+          },
+          "Parameters": [
+            "EmrClusterRequired",
+            "EMRID"
+          ]
+        },
+   
+        {
+          "Label": {
+            "default": "Amazon RedShift Configuration"
+          },
+          "Parameters": [
+            "RedshiftClusterRequired",
+            "RedshiftHost",
+            "RedshiftUserName",
+            "RedshiftDatabaseName",
+            "RedshiftPassword",
+            "ConfirmRedshiftPassword"
+          ]
+    }
+        
+      ],
+      "ParameterLabels": {
+        "RedshiftUserName":{
+          "default":"Redshift User Name"
+        },
+        "PrivateSubnetID1":{
+          "default":"ServiceSubnetID1"
+        },
+        "PrivateSubnetID2":{
+          "default": "ServiceSubnetID2"
+        },
+        "RedshiftClusterRequired": {
+          "default": "Redshift Deploy Type"
+        },
+        "RedshiftDatabaseName": {
+          "default": "Redshift Database Name"
+        },
+        "RedshiftPassword": {
+          "default": "Redshift Cluster Password"
+        },
+        "DBSubnetIDs": {
+          "default": "Informatica Database Subnet"
+        },
+        "EncryptionKeyPhrase": {
+          "default": "Encryption Key Phrase"
+        },
+        "InformaticaDomainName": {
+          "default": "Informatica Domain Name"
+        },
+        "InformaticaNodeName": {
+          "default": "Informatica Node Name"
+        },
+        "DeployRemoteServer": {
+          "default": "Deploy a Remote Windows server?"
+        },
+        "InformaticaDomainUsername": {
+          "default": "Informatica Administrator Username"
+        },
+        "InformaticaDomainPassword": {
+          "default": "Informatica Administrator Password"
+        },
+        "DBPassword": {
+          "default": "Informatica Database Instance Password"
+        },
+        "ConfirmDBPassword": {
+          "default": "Confirm Password"
+        },
+        "SelectMultiAZ": {
+          "default": "Select MultiAZ deployment"
+        },
+        "InformaticaDomainPasswordConfirm": {
+          "default": "Confirm Password"
+        },
+        "ConfirmRedshiftPassword":{
+          "default":"Confirm Redshift Password"
+        },
+        "EmrClusterRequired": {
+          "default": "EMR AutoDeploy"
+        },
+        "KeyPairName": {
+          "default": "Key Pair Name"
+        },
+
+        "IPAddressRange": {
+          "default": "Remote Access CIDR"
+        },
+        "VPCID": {
+          "default": "VPC ID"
+        },
+        "InformaticaLicenseKeyS3Bucket": {
+          "default": "Big Data Management License Key Location"
+        },
+        "InformaticaLicenseKeyName": {
+          "default": "Big Data Management License Key Name"
+        },
+        "EMRID": {
+          "default": "EMR ID of EMR cluster"
+        }
+      }
+    }
+  },
+"Parameters": {
+  "InformaticaDomainUsername": {
+    "AllowedPattern": "^([a-zA-Z][a-z0-9A-Z_]{7,32})$",
+    "ConstraintDescription": "Only alphanumeric characters and underscore are allowed. Should begin with an alphabet. The value must be 8-32",
+    "Description": "Username for the Informatica Domain.",
+    "Default": "Administrator",
+    "MaxLength": "32",
+    "MinLength": "8",
+    "Type": "String"
+  },
+  "InformaticaDomainPassword": {
+    "AllowedPattern": "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^\\s\\w])(?!.*[\"$&]).{7,32}$",
+    "ConstraintDescription": "Password must be at least 8 characters in length. Should contain at least one special character, number, upper-case and lower-case character. Double quote(\"), ampersand(&) and dollar($) is not allowed",
+    "Description": "Password for the Informatica Domain. Password must be at least 8 characters in length. Should contain at least one special character, number, upper-case and lower-case character. Double quote(\"), ampersand(&) and dollar($) is not allowed",
+    "NoEcho": "True",
+    "MaxLength": "32",
+    "MinLength": "8",
+    "Type": "String"
+  },
+  "RedshiftUserName":{
+    "AllowedPattern": "^$|(([a-z])([a-z]|[0-9])*)",
+    "ConstraintDescription": "must start with a-z and contain only a-z or 0-9.",
+    "Description": "The user name associated with the master user account for the Redshift cluster that is being created.It must start with a-z and contain only a-z or 0-9.",
+    "Type": "String"
+
+  },
+  "RedshiftHost": {
+    "Description": "DNS Name or IP address of the master node of an existing Redshift cluster which you intend to use for the Informatica sample jobs. Leave this <NONE> to create a new Redshift cluster.The cluster should be in the VPC selected by user above.",
+    "Type": "String",
+    "Default": "<NONE>"
+  },
+  "InformaticaDomainPasswordConfirm": {
+    "AllowedPattern": "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[^\\s\\w])(?!.*[\"$&]).{7,32}$",
+    "ConstraintDescription": "Password must be at least 8 characters in length. Should contain at least one special character, number, upper-case and lower-case character. Double quote(\"), ampersand(&) and dollar($) is not allowed",
+    "Description": "Password for the Informatica Domain.",
+    "NoEcho": "True",
+    "MaxLength": "32",
+    "MinLength": "8",
+    "Type": "String"
+  },
+  "SelectMultiAZ": {
+    "Description": "Select MultiAZ deployment",
+    "Type": "String",
+    "MinLength": "1",
+    "AllowedValues": [
+      "Yes",
+      "No"
+    ],
+    "Default": "No",
+    "ConstraintDescription": "Specifying MultiAZ is mandetory"
+  },
+  
+
+  "RedshiftClusterRequired": {
+    "Description": "This is not required for domain creation. If selected No, ignore below fields under Amazon RedShift Configuration also you will not be able to run sample redshift related mappings.",
+    "Type": "String",
+    "Default": "Skip",
+    "AllowedValues": [ "Skip", "Required" ]
+  },
+  "EmrClusterRequired": {
+    "Description": "This is not required for domain creation. If selected No, ignore below fields under Amazon EMR Configuration also you will not be able to run sample EMR related mappings.",
+    "Type": "String",
+    "Default": "No",
+    "AllowedValues": [ "Yes", "No" ]
+  },
+  "InformaticaLicenseKeyS3Bucket": {
+    "Type": "String",
+    "Description": "**Use a bucket of same region, the stack is being launched. Name of the Amazon S3 bucket in your account that contains the Informatica Big DataManagement Key",
+    "MinLength": "1",
+    "ConstraintDescription": "Informatica EIC Key S3 Bucket is mandatory"
+  },
+  "InformaticaLicenseKeyName": {
+    "Type": "String",
+    "Description": "The Big data Management license key name. For example, <license key name> or <bucket sub folder/license key name>",
+    "MinLength": "1",
+    "ConstraintDescription": "Informatica EIC Key Name is mandatory"
+  },
+  
+  "RedshiftDatabaseName": {
+    "Description": "The name of the first database to be created when the cluster is created",
+    "Type": "String",
+    "ConstraintDescription": "Only lower case alphanumeric character allowed",
+    "AllowedPattern": "^$|(([a-z]|[0-9])+)$"
+  },
+  "DBPassword": {
+    "AllowedPattern": "^([a-zA-Z][a-z0-9A-Z_]{3,20})$",
+    "ConstraintDescription": "Only alphanumeric characters and underscore are allowed. Should begin with an alphabet. The value must be 8-18",
+    "Description": "Password for the Amazon RDS database account. Only alphanumeric characters and underscore are allowed. Should begin with an alphabet. The value must be 8-18",
+    "MaxLength": "18",
+    "MinLength": "8",
+    "NoEcho": "True",
+    "Type": "String"
+  },
+  "ConfirmDBPassword": {
+    "NoEcho": "True",
+    "Type": "String",
+    "MinLength": "1",
+    "ConstraintDescription": "Confirm Password is mandatory "
+  },
+  "RedshiftPassword": {
+    "Description": "The password that is associated with the master user account for the cluster that is being created. Default is set to Defaultuser1. Must be 8 to 64 characters in length and contain at least one uppercase letter, one lowercase letter, and one number. Space, single or double quote, front and back slash not allowed.",
+    "Type": "String",
+    "ConstraintDescription": "Must be 8 to 64 characters in length and contain at least one uppercase letter, one lowercase letter, and one number. Space, single or double quote, front and back slash not allowed.",
+    "NoEcho": "true",
+    "AllowedPattern": "^$|((?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d!#$%&\\(\\)*+,-.;<=>?\\[\\]^_`{|}~]{8,64})$"
+  },
+  "ConfirmRedshiftPassword": {
+    "Description": "The password that is associated with the master user account for the cluster that is being created. Default is set to Defaultuser1. Must be 8 to 64 characters in length and contain at least one uppercase letter, one lowercase letter, and one number. Space, single or double quote, front and back slash not allowed.",
+    "Type": "String",
+    "ConstraintDescription": "Must be 8 to 64 characters in length and contain at least one uppercase letter, one lowercase letter, and one number. Space, single or double quote, front and back slash not allowed.",
+    "NoEcho": "true",
+    
+    "AllowedPattern": "^$|((?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d!#$%&\\(\\)*+,-.;<=>?\\[\\]^_`{|}~]{8,64})$"
+  },
+
+  "EMRID": {
+    "Description": "Enter a ID of the existing EMR cluster.Leave it <NONE> if you are selecting autodeploy or new cluster. ",
+    "Type": "String",
+    "Default": "<NONE>"
+  },
+  "KeyPairName": {
+    "Description": "Name of an existing EC2 KeyPair to enable SSH access to the Informatica Domain",
+    "Type": "AWS::EC2::KeyPair::KeyName"
+  },
+  "DeployRemoteServer": {
+    "Type": "String",
+    "Default": "No",
+    "AllowedValues": [
+      "Yes",
+      "No"
+    ],
+    "Description": "Select Yes to deploy a Remote Windows Server to access other resources in the VPC. **We Strongly recomand if you choose Yes then choose Service subnets which are not attached to a Internet gateway."
+  },
+  "PublicSubnetID": {
+    "Description": "Select a publically accessible subnet ID for the Informatica Domain",
+    "Type": "AWS::EC2::Subnet::Id",
+    "MinLength": "1"
+  },
+  "PrivateSubnetID1": {
+    "Description": "Select a publically accessible subnet ID for the Informatica Domain",
+    "Type": "AWS::EC2::Subnet::Id",
+    "MinLength": "1"
+
+  },
+  "PrivateSubnetID2": {
+    "Description": "Select a publically accessible subnet ID for the Informatica Domain",
+    "Type": "AWS::EC2::Subnet::Id",
+    "MinLength": "1"
+  },
+  "IPAddressRange": {
+    "AllowedPattern": "^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])(\\/([0-9]|[1-2][0-9]|3[0-2]))$",
+    "ConstraintDescription": "CIDR block parameter must be in the form x.x.x.x/x",
+    "Description": "Allowed CIDR block for external access to the Informatica domain and the EMR cluster",
+    "Type": "String"
+  },
+  "VPCID": {
+    "Description": "Which VPC should this be deployed to?",
+    "Type": "AWS::EC2::VPC::Id",
+    "MinLength": "1"
+  }
+},
+  "Rules": {
+    "SubnetsInVPC": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::EachMemberIn": [
+              {
+                "Fn::ValueOfAll": [
+                  "AWS::EC2::Subnet::Id",
+                  "VpcId"
+                ]
+              },
+              {
+                "Fn::RefAll": "AWS::EC2::VPC::Id"
+              }
+            ]
+          },
+          "AssertDescription": "All subnets must in the VPC"
+        }
+      ]
+    },
+	"matchRedshiftPasswords": {
+            "Assertions": [
+                {
+                    "Assert": {
+                        "Fn::Equals": [
+                            {
+                                "Ref": "RedshiftPassword"
+                            },
+                            {
+                                "Ref": "ConfirmRedshiftPassword"
+                            }
+                        ]
+                    },
+                    "AssertDescription": "Passwords do not match"
+                }
+            ]
+        },
+        "matchDBPasswords": {
+            "Assertions": [
+                {
+                    "Assert": {
+                        "Fn::Equals": [
+                            {
+                                "Ref": "DBPassword"
+                            },
+                            {
+                                "Ref": "ConfirmDBPassword"
+                            }
+                        ]
+                    },
+                    "AssertDescription": "Passwords do not match"
+                }
+            ]
+        },
+         "matchSubnet": {
+          "Assertions": [
+            {
+              "Assert": {
+                "Fn::Not": [
+                  {
+                    "Fn::Equals": [
+                      {
+                        "Ref": "PrivateSubnetID1"
+                      },
+                      {
+                        "Ref": "PrivateSubnetID2"
+                      }
+                    ]
+                  }
+                ]
+              },
+              "AssertDescription": "Two service subnets must not be same."
+            }
+          ]
+        },
+        "matchAdministratorPasswords": {
+            "Assertions": [
+                {
+                    "Assert": {
+                        "Fn::Equals": [
+                            {
+                                "Ref": "InformaticaDomainPassword"
+                            },
+                            {
+                                "Ref": "InformaticaDomainPasswordConfirm"
+                            }
+                        ]
+                    },
+                    "AssertDescription": "Passwords do not match"
+                }
+            ]
+        },
+		"RedshiftValidation": {
+          "RuleCondition": {
+            "Fn::Equals": [
+              {
+                "Ref": "RedshiftClusterRequired"
+              },
+              "Skip"
+            ]
+          },
+          "Assertions": [
+            {
+              "Assert": {
+                
+                    "Fn::Equals": [
+                      {
+                        "Ref": "RedshiftPassword"
+                      },
+                      ""
+                    ]
+                  
+              },
+              "AssertDescription": "Redshift Password Should be blank if Skip is selected"
+            },
+            {
+              "Assert": {
+                
+                    "Fn::Equals": [
+                      {
+                        "Ref": "ConfirmRedshiftPassword"
+                      },
+                      ""
+                    ]
+                  
+              },
+              "AssertDescription": "Redshift Confirm Password Should be blank if Skip is selected"
+            },
+			 {
+              "Assert": {
+                
+                    "Fn::Equals": [
+                      {
+                        "Ref": "RedshiftUserName"
+                      },
+                      ""
+                    ]
+                  
+              },
+              "AssertDescription": "Redshift UserName Should be blank if Skip is selected"
+            },
+			 {
+              "Assert": {
+                
+                    "Fn::Equals": [
+                      {
+                        "Ref": "RedshiftDatabaseName"
+                      },
+                      ""
+                    ]
+                  
+              },
+              "AssertDescription": "Redshift Database Name Should be blank if Skip is selected"
+            }
+          ]
+        }
+  },
+"Mappings": {
+    "s3BucketMap": {
+      "QSS3Bucket": {
+        "value": "infa-aws-resources"
+      },
+      "QSS3Prefix": {
+        "value": ""
+      }
+    }
+  },
+  
+"Conditions": {
+  "GovCloudCondition": {
+    "Fn::Equals": [
+      {
+        "Ref": "AWS::Region"
+      },
+      "us-gov-west-1"
+    ]
+  },
+  "VirginiaCondition": {
+    "Fn::Equals": [
+      {
+        "Ref": "AWS::Region"
+      },
+      "us-east-1"
+    ]
+  },
+  "IsRedshiftRequired": {
+    "Fn::Equals": [
+      {
+        "Ref": "RedshiftClusterRequired"
+      },
+      "Required"
+    ]
+  },
+  "IsEMRRequired": {
+    "Fn::Equals": [
+      {
+        "Ref": "EmrClusterRequired"
+      },
+      "No"
+    ]
+  },
+
+  "EmrConditionforNew": {
+    "Fn::And": [
+      {
+        "Fn::Equals": [
+          "No",
+          { "Ref": "EmrClusterRequired" }
+        ]
+      },
+      {
+        "Fn::Equals": [
+          "<NONE>",
+          { "Ref": "EMRID" }
+        ]
+      }
+    ]
+  },
+   "EmrConditionforResources": {
+    "Fn::Or": [
+      {
+        "Fn::Equals": [
+          "Yes",
+          { "Ref": "EmrClusterRequired" }
+        ]
+      },
+      {
+        "Fn::Equals": [
+          "<NONE>",
+          { "Ref": "EMRID" }
+        ]
+      }
+    ]
+  },
+  "EmrConditionExisting": {
+    "Fn::And": [{
+    "Fn::Not": [
+          {
+            "Fn::Equals": [
+              "<NONE>",
+              { "Ref": "EMRID" }
+            ]
+          }
+    ]},
+  {
+    "Fn::Equals": [
+      "No",
+      { "Ref": "EmrClusterRequired" }
+    ]
+
+  }]
+  },
+    "RedshiftConditionforNew": {
+    "Fn::And": [
+      {
+        "Fn::Equals": [
+          {
+            "Ref": "RedshiftClusterRequired"
+          },
+          "Required"
+        ]
+      },
+      {
+        "Fn::Equals": [
+          "<NONE>",
+          { "Ref": "RedshiftHost" }
+        ]
+      }
+    ]
+  },
+    
+  "RedshiftConditionforExisting": {
+    "Fn::And": [
+      {
+        "Fn::Equals": [
+          {
+            "Ref": "RedshiftClusterRequired"
+          },
+          "Required"
+        ]
+      },
+      {
+        "Fn::Not":[{
+        "Fn::Equals": [
+          "<NONE>",
+          { "Ref": "RedshiftHost" }
+        ]}]
+      }
+    ]
+  },
+  "DeployRemoteServerCnd": {
+    "Fn::Equals": [
+      {
+        "Ref": "DeployRemoteServer"
+      },
+      "Yes"
+    ]
+  }
+},
+  "Resources": {
+    "PublicSubnetCheckLambdaStack": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/lambda-public-subnet-check.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "VPCID": {
+            "Ref": "VPCID"
+          },
+          "PublicSubnetID": {
+            "Ref": "PublicSubnetID"
+          },
+          "DeployRemoteServer": {
+            "Ref": "DeployRemoteServer"
+          }
+        }
+      }
+    },
+    "ServiceSubnetsAZCheckLambdaStack": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/lambda-service-subnets-zone-check.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "VPCID": {
+            "Ref": "VPCID"
+          },
+          "ServiceSubnetID1": {
+            "Ref": "PrivateSubnetID1"
+          },
+          "ServiceSubnetID2": {
+            "Ref": "PrivateSubnetID2"
+          }
+        }
+      }
+    },
+    "ServiceSubnetCheckLambdaStack": {
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/lambda-service-subnet-check.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "VPCID": {
+            "Ref": "VPCID"
+          },
+          "ServiceSubnetID": {
+            "Ref": "PrivateSubnetID1"
+          }
+        }
+      }
+    },
+    "S3BucketStack": {
+      "Type": "AWS::CloudFormation::Stack",
+      "DependsOn": [
+        "PublicSubnetCheckLambdaStack",
+        "ServiceSubnetsAZCheckLambdaStack",
+        "ServiceSubnetCheckLambdaStack",
+        "IAMStack",
+        "SecurityGroupStack"              
+      ],
+      "Properties": {
+          "TemplateURL": {
+              "Fn::Sub": [
+			  "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/bdm/informatica-s3-bucket.template",
+			  {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+			]
+
+          },
+          "Parameters": {
+          }
+      }
+  },
+  "IAMStack": {
+    "DependsOn": [
+      "PublicSubnetCheckLambdaStack",
+      "ServiceSubnetsAZCheckLambdaStack",
+      "ServiceSubnetCheckLambdaStack"           
+    ],
+    "Type": "AWS::CloudFormation::Stack",
+    "Properties": {
+      "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/informatica-iam.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+          ]
+        },
+      "Parameters": {
+        "InformaticaLicenseKeyS3Bucket": {
+          "Ref": "InformaticaLicenseKeyS3Bucket"
+        },
+        "InformaticaLicenseKeyName": {
+          "Ref": "InformaticaLicenseKeyName"
+        },
+        "RedshiftClusterRequired":{
+          "Ref":"RedshiftClusterRequired"
+        },
+        "EMRID":{
+          "Ref":"EMRID"
+        }
+      }
+    }
+  },
+  "SecurityGroupStack": {
+    "DependsOn": [
+      "PublicSubnetCheckLambdaStack",
+      "ServiceSubnetsAZCheckLambdaStack",
+      "ServiceSubnetCheckLambdaStack"
+    ],
+    "Type": "AWS::CloudFormation::Stack",
+    "Properties": {
+       "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/informatica-security-group.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+          ]
+        },
+      "Parameters": {
+        "VPCID": {
+          "Ref": "VPCID"
+        },
+        "JumpServerPublicSubnet": {
+              "Ref": "PublicSubnetID"
+            },
+        "IPAddressRange": {
+              "Ref": "IPAddressRange"
+            },
+       "ServiceSubnet": {
+            "Ref": "PrivateSubnetID1"
+          },
+		"RedshiftRequired": {
+          "Ref": "RedshiftClusterRequired"
+        },
+		
+          "DeployRemoteServer": {
+            "Ref": "DeployRemoteServer"
+          },
+    "InfaProduct": "BDM",
+		"EMRID":{
+		  "Ref":"EMRID"
+		}
+	
+      }
+    }
+  },
+      "RedshiftClusterStack": {
+          "Type": "AWS::CloudFormation::Stack",
+          "DependsOn": [
+            "PublicSubnetCheckLambdaStack",
+            "ServiceSubnetsAZCheckLambdaStack",
+            "ServiceSubnetCheckLambdaStack",
+            "IAMStack",
+            "SecurityGroupStack"              
+          ],            
+          "Condition": "IsRedshiftRequired",
+          "Properties": {
+		  
+              "TemplateURL": {
+              "Fn::Sub": [
+			  "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/bdm/informatica-redshift-cluster.template",
+			  {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+			]
+
+          },
+              "Parameters": {
+                  "VPCID": {
+                      "Ref": "VPCID"
+                  },
+                  "SubnetID": {
+                      "Ref": "PrivateSubnetID1"
+                  },
+                  "DatabaseName": {
+                      "Ref": "RedshiftDatabaseName"
+                  },
+                  "SecurityGroupID": {
+                    "Fn::GetAtt": [
+                      "SecurityGroupStack",
+                      "Outputs.RedShiftSecurityGroup"
+                    ]
+                  },
+                  "ClusterType":"single-node",
+                  "NumberOfNodes":"1",
+                  "NodeType":"dc2.large",  
+                  "MasterUsername": {
+                    "Ref":"RedshiftUserName"
+                  },
+                  "MasterUserPassword": {
+                      "Ref": "RedshiftPassword"
+                  }
+              }
+          }
+      },
+      
+     
+      "RDSStack": {
+        "Type": "AWS::CloudFormation::Stack",
+        "Properties": {
+                "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/informatica-bdmgroup-rds.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+          ]
+        },
+          "Parameters": {
+            "MasterDbPassword": {
+              "Ref": "DBPassword"
+            },
+            "DBSubnetID1": {
+              "Ref": "PrivateSubnetID1"
+            },
+            "DBSubnetID2": {
+              "Ref": "PrivateSubnetID2"
+            },
+            "InfaDBSecurityGroup": {
+              "Fn::GetAtt": [
+                "SecurityGroupStack",
+                "Outputs.InfaDBSecurityGroup"
+              ]
+            },
+            "SelectMultiAZ": {
+              "Ref": "SelectMultiAZ"
+            }
+          }
+        }
+      },
+      "EMRStack": {
+        "Type": "AWS::CloudFormation::Stack",
+        "DependsOn": [
+          "PublicSubnetCheckLambdaStack",
+          "ServiceSubnetsAZCheckLambdaStack",
+          "ServiceSubnetCheckLambdaStack",
+          "IAMStack",
+          "SecurityGroupStack"
+        ],
+        "Condition": "EmrConditionforNew",
+        "Properties": {
+            "TemplateURL": {
+                "Fn::Sub": [
+			  "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/bdm/informatica-emr-cluster.template",
+			  {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+			]
+            },
+            "Parameters": {
+                "EmrSecurityGroup": {
+                  "Fn::GetAtt": [
+                    "SecurityGroupStack",
+                    "Outputs.InfaDomainEMRSecurityGroup"
+                  ]
+                },                  
+                "RemoteAccessEmrSecurityGroup": {
+                  "Fn::GetAtt": [
+                    "SecurityGroupStack",
+                    "Outputs.RemoteAccessEMRSecurityGroup"
+                  ]
+                }, 
+                "BootstrapS3Bucket": {
+                  "Fn::GetAtt": [
+                    "S3BucketStack",
+                    "Outputs.BootstrapS3Bucket"
+                  ]
+                },
+                "EMRClusterName":"awsquickstart",
+                "EMRCoreInstanceType":"m5.xlarge",
+                "EMRCoreNodes": "1",
+                "EMRMasterInstanceType": "m5.xlarge",
+                "KeyPairName": {
+                  "Ref": "KeyPairName"
+                },
+                "PrivateSubnet1ID": {
+                  "Ref": "PrivateSubnetID1"
+                },
+				"InformaticaInstanceProfile": {
+					"Fn::GetAtt": [
+						"IAMStack",
+						"Outputs.InstanceProfile"
+					]
+				}
+
+            }
+        }
+    },
+    "RemoteAccessJumpServerStack": {
+      "Condition": "DeployRemoteServerCnd",
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+        "TemplateURL": {
+          "Fn::Sub": [
+            "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/common/informatica-remote-access-server.template",
+            {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+          ]
+        },
+        "Parameters": {
+          "KeyName": {
+            "Ref": "KeyPairName"
+          },
+          "JumpServerNetInterface": {
+            "Fn::GetAtt": [
+              "SecurityGroupStack",
+              "Outputs.JumpServerNetInterface"
+            ]
+          }
+        }
+      }
+    },
+    "BDMInformatica":{
+      "DependsOn": [
+        "PublicSubnetCheckLambdaStack",
+        "ServiceSubnetsAZCheckLambdaStack",
+        "ServiceSubnetCheckLambdaStack",
+        "RDSStack",
+        "SecurityGroupStack",
+        "IAMStack"
+                    
+      ],
+      "Type": "AWS::CloudFormation::Stack",
+      "Properties": {
+       "TemplateURL": {
+                "Fn::Sub": [
+			  "https://${QSS3Bucket}.${QSS3Region}.amazonaws.com/${QSS3Prefix}templates/bdm/informatica-bdm-server.template",
+			  {
+              "QSS3Region": {
+                "Fn::If": [
+                  "GovCloudCondition",
+                  "s3-us-gov-west-1",
+                  "s3"
+                ]
+              },
+              "QSS3Bucket": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Bucket",
+                  "value"
+                ]
+              },
+              "QSS3Prefix": {
+                "Fn::FindInMap": [
+                  "s3BucketMap",
+                  "QSS3Prefix",
+                  "value"
+                ]
+              }
+            }
+			]
+            },
+        "Parameters": {
+          "KeyName": {
+            "Ref": "KeyPairName"
+          },
+          "InformaticaAdminUsername": {
+            "Ref": "InformaticaDomainUsername"
+          },
+          "InformaticaAdminPassword": {
+            "Ref": "InformaticaDomainPassword"
+          },
+          "InfaDBPassword": {
+            "Ref": "DBPassword"
+          },
+          "InfaDBEndpoint": {
+            "Fn::GetAtt": [
+              "RDSStack",
+              "Outputs.EndpointAddress"
+            ]
+          },
+
+          "InstanceRole": {
+            "Fn::GetAtt": [
+              "IAMStack",
+              "Outputs.InstanceRole"
+            ]
+          },
+          "InstanceProfile": {
+            "Fn::GetAtt": [
+              "IAMStack",
+              "Outputs.InstanceProfile"
+            ]
+          },
+          "AdministrationServerNetInterface": {
+            "Fn::GetAtt": [
+              "SecurityGroupStack",
+              "Outputs.AdministrationServerNetInterface"
+            ]
+          },
+          "InformaticaLicenseKeyS3Bucket": {
+            "Ref": "InformaticaLicenseKeyS3Bucket"
+          },
+          "InformaticaLicenseKeyName": {
+            "Ref": "InformaticaLicenseKeyName"
+          },
+          "EMRID": {
+            "Fn::If": [
+              "EmrConditionExisting",
+
+              {
+                "Ref": "EMRID"
+              },
+              {
+                "Fn::If": [
+
+                  "EmrConditionforNew",
+
+                  {
+                    "Fn::GetAtt": [
+                      "EMRStack",
+                      "Outputs.EMRID"
+                    ]
+                  },
+                  ""
+                ]
+              }
+            ]
+          },
+          "RedshiftDatabaseName": {
+            "Ref": "RedshiftDatabaseName"
+          },
+          "RedshiftDatabasePort": "5439",         
+          "RedshiftHost": {
+            "Fn::If": [
+              "RedshiftConditionforExisting",
+              {
+                "Ref": "RedshiftHost"
+              },
+              {
+                "Fn::If": [
+                  "RedshiftConditionforNew",
+                  {
+                    "Fn::GetAtt": [
+                      "RedshiftClusterStack",
+                      "Outputs.RedshiftHost"
+                    ]
+                  },
+                  ""
+                ]
+              }
+            ]
+          },
+          "RedshiftPassword": {
+            "Ref": "RedshiftPassword"
+          },
+          "RedshiftUsername":{
+            "Ref":"RedshiftUserName"
+          },
+          "EmrClusterRequired":{
+            "Ref":"EmrClusterRequired"
+          },
+          "RedshiftClusterRequired":{
+            "Ref":"RedshiftClusterRequired"
+          },
+          "S3BucketName":{
+            "Fn::GetAtt": [
+              "S3BucketStack",
+              "Outputs.BootstrapS3Bucket"
+            ]
+          },
+          "VPCID": {
+            "Ref": "VPCID"
+          },
+          "PrivateSubnetID2":{
+            "Ref":"PrivateSubnetID2"
+          },
+		  "RemoteAccessEMRSecurityGroup": {
+            "Fn::If": [
+              "EmrConditionExisting",
+              
+                ""
+              ,
+              {
+                "Fn::If": [
+
+                  "EmrConditionforResources",
+
+                  {
+                    "Fn::GetAtt": [
+                      "SecurityGroupStack",
+                      "Outputs.RemoteAccessEMRSecurityGroup"
+                    ]
+                  },
+                  ""
+                ]
+              }
+            ]
+          },
+		  "InfaDomainEMRSecurityGroup": {
+            "Fn::If": [
+              "EmrConditionExisting",
+
+              "",
+              {
+                "Fn::If": [
+
+                  "EmrConditionforResources",
+
+                  {
+                    "Fn::GetAtt": [
+                      "SecurityGroupStack",
+                      "Outputs.InfaDomainEMRSecurityGroup"
+                    ]
+                  },
+                  ""
+                ]
+              }
+            ]
+          },
+		  "QSS3Bucket": {
+            "Fn::FindInMap": [
+              "s3BucketMap",
+              "QSS3Bucket",
+              "value"
+            ]
+          },
+          "QSS3Prefix": {
+            "Fn::FindInMap": [
+              "s3BucketMap",
+              "QSS3Prefix",
+              "value"
+            ]
+          }
+          
+        }
+      }          
+
+
+    }
+  },
+  "Outputs": {
+    "InformaticaAdminConsoleURL": {
+      "Description": "Informatica Administrator Console",
+      "Value": {
+        "Fn::GetAtt": [
+          "BDMInformatica",
+          "Outputs.InformaticaAdminConsoleURL"
+        ]
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InformaticaAdminConsoleURL"
+        }
+      }
+    },
+   
+    "InformaticaAdminConsoleServerLogs": {
+      "Description": "Informatica Domain Installation Log Location",
+      "Value": {
+        "Fn::GetAtt": [
+          "BDMInformatica",
+          "Outputs.InformaticaAdminConsoleServerLogs"
+        ]
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InformaticaAdminConsoleServerLogs"
+        }
+      }
+    },    
+
+    "InstanceSetupLogs": {
+      "Description": "Informatica Domain EC2 Instance setup Log Location",
+      "Value": {
+        "Fn::GetAtt": [
+          "BDMInformatica",
+          "Outputs.InstanceSetupLogs"
+        ]
+      },
+      "Export": {
+        "Name": {
+          "Fn::Sub": "${AWS::StackName}:InstanceSetupLogs"
+        }
+      }
+    }
+
+
+  }
+}
