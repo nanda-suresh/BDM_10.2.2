@@ -29,7 +29,7 @@
     },
 	    {
         "ParameterKey": "DeployRemoteServer",
-        "ParameterValue": "No"
+        "ParameterValue": "Yes"
     },
 		    {
         "ParameterKey": "KeyPairName",
