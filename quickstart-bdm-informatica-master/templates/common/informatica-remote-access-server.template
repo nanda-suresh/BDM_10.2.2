@@ -69,10 +69,10 @@
         "INFARMTSRVRHVM": "TBD"
       },
       "us-gov-west-1": {
-        "INFARMTSRVRHVM": "TBD"
+        "INFARMTSRVRHVM": "ami-ac295ccd"
       },
       "us-gov-east-1": {
-        "INFARMTSRVRHVM": "TBD"
+        "INFARMTSRVRHVM": "ami-0606ebafe838762d7"
       }
     }
   },
