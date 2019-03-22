@@ -221,7 +221,7 @@
   "EmrClusterRequired": {
     "Description": "This is not required for domain creation. If selected No, ignore below fields under Amazon EMR Configuration also you will not be able to run sample EMR related mappings.",
     "Type": "String",
-    "Default": "No",
+    "Default": "Yes",
     "AllowedValues": [ "Yes", "No" ]
   },
   "InformaticaLicenseKeyS3Bucket": {
@@ -298,13 +298,13 @@
     "MinLength": "1"
   },
   "PrivateSubnetID1": {
-    "Description": "Select a publically accessible subnet ID for the Informatica Domain",
+    "Description": "Select a subnet ID (must be from the VPC chosen). Infa server and hadoop nodes will be deployed. **This Subnet must be attached to either an Internet Gateway or a NAT Gateway. Must not be same as Service subnet2",
     "Type": "AWS::EC2::Subnet::Id",
     "MinLength": "1"
 
   },
   "PrivateSubnetID2": {
-    "Description": "Select a publically accessible subnet ID for the Informatica Domain",
+    "Description": "Must not be same as Service subnet1. Select a subnet ID (must be from the VPC chosen) for 2nd zone DB if want to deploy a MultiAZ RDS. Else choose any subnet (must be from the VPC chosen) from list.",
     "Type": "AWS::EC2::Subnet::Id",
     "MinLength": "1"
   },
