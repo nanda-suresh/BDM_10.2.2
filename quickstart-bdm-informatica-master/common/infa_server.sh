@@ -130,7 +130,6 @@ hostProcess()
 		for ((i=0; i<$end2; i++))
 		do
 			sudo ssh -o StrictHostKeyChecking=no -o PasswordAuthentication=no ${arr3[i]} "sudo su -c 'printf \"${hostEntry}${privateIp} ${privateDnsName}\" >> /etc/hosts'"
-			sudo ssh -o StrictHostKeyChecking=no -o PasswordAuthentication=no ${arr3[i]} "sudo su -c 'systemctl restart ntpd.service'"
 		done
 	fi
 	
@@ -225,7 +224,7 @@ createHADOOPConnectionautodeploy()
 
 createAutodeployConnection()
 {
-	hadoopout=$($infaHome/isp/bin/infacmd.sh  createConnection -dn $domain -un $newDomainUser -pd $newDomainPwd -ct AWSCLOUDPROVISIONINGCONNECTION -cn EMR_Autodeploy -cid Autodeploy_EMR -o "ec2KeyPair="$Keypairname" ec2Role='EMR_EC2_DefaultRole' ec2SubnetName="$Subnet" region="$region1" serviceRole='EMR_DefaultRole'")
+	hadoopout=$($infaHome/isp/bin/infacmd.sh  createConnection -dn $domain -un $newDomainUser -pd $newDomainPwd -ct AWSCLOUDPROVISIONINGCONNECTION -cn EMR_Autodeploy -cid Autodeploy_EMR -o "ec2KeyPair="$Keypairname" ec2Role='EMR_EC2_DefaultRole' ec2SubnetName="$Subnet" region="$region1" serviceRole='EMR_DefaultRole' addtionalMasterSecurityGroups='$securitygroup1' addtionalSlaveSecurityGroups='$securitygroup2'")
 	if [[ ${hadoopout} =~ "Command ran successfully" ]]
 	then
 		echo -e "\EMR Autodeploy Connection - EMR_Autodeploy is created successfully.\n" &>> $logFile
@@ -361,7 +360,9 @@ updateDomain()
 	sh ${infaHome}/isp/bin/infasetup.sh updateGatewayNode -da ${dbHost}:${dbPort} -du domain_user -dp ${dbUserPwd} -dt ORACLE -ds INFADB -na ${privateDnsName}:6005 -resetHostPort true &>> $logFile
 
 	echo -e "\nBringing Domain up...\n" &>> $logFile
-	sh ${infaHome}/tomcat/bin/infaservice.sh startup  &>> $logFile
+	#sh ${infaHome}/tomcat/bin/infaservice.sh startup  &>> $logFile
+	sudo /etc/init.d/infaservice start &>> $logFile
+	sudo chkconfig infaservice on
 	sleep 120
 	
 	echo -e "\nChecking Admin Console is up or Not...\n" &>> $logFile
@@ -417,6 +418,7 @@ enableMRS()
 	echo -e "\nConfiguring Model Repository Service...\n" &>> $logFile
 	sh ${infaHome}/isp/bin/infacmd.sh mrs updateServiceOptions -dn $domain -un $newDomainUser -pd $newDomainPwd -sn Model_Repository_Service -o " PERSISTENCE_DB.Password=${dbUserPwd} PERSISTENCE_DB.JDBCConnectString=jdbc:informatica:oracle://${dbHost}:${dbPort};ServiceName=INFADB;MaxPooledStatements=20;CatalogOptions=0;BatchPerformanceWorkaround=true" &>> $logFile
 	
+	sh ${infaHome}/isp/bin/infacmd.sh updateMonitoringOptions -dn $domain -un $newDomainUser -pd $newDomainPwd -rs Model_Repository_Service -rsun $newDomainUser -rspd $newDomainPwd
 	echo -e "\nEnabling Model Repository Service...\n" &>> $logFile
 	sh ${infaHome}/isp/bin/infacmd.sh enableService -dn $domain -un $newDomainUser -pd $newDomainPwd -sn Model_Repository_Service &>> $logFile
 	
@@ -473,12 +475,6 @@ enableMASS()
 
 enableIHS()
 {
-	echo -e "\nSyncing NTP on IHS cluster nodes...\n" &>> $logFile
-	for ((i=0; i<$ihsNodeCount; i++))
-	do
-		sudo ssh -o StrictHostKeyChecking=no -o PasswordAuthentication=no ${ihsNodeDnsArr[i]} "sudo su -c 'systemctl restart ntpd.service'"
-	done
-		
 	echo -e "\nCreating Informatica Hadoop Service...\n" &>> $logFile
 	sh ${infaHome}/isp/bin/infacmd.sh ihs createservice -dn $domain -un $newDomainUser -pd $newDomainPwd -nn $nodeName -sn 'Informatica_Hadoop_Service' -p 8088 -hgh ${hdpGatewayNodePubDns} -hgp 8080 -hn ${hdpAllNodePubDns} -gu root -krb false -dssl false -opwd false -oo "IcsCustomOptions.ihssecurity.ssl.disable=true" &>> $logFile
 	

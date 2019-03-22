@@ -6,3 +6,5 @@ sudo echo -e "${privateDnsName}" >> /etc/hostname
 sudo echo -e "HOSTNAME=${privateDnsName}" >> /etc/sysconfig/network
 sudo echo -e "preserve_hostname: true" >> /etc/cloud/cloud.cfg
 sudo service network restart
+sudo systemctl enable ntpd.service
+sudo systemctl restart ntpd.service
