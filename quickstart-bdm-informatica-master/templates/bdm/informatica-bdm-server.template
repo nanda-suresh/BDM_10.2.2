@@ -188,57 +188,64 @@
       }
     },
        "AWSAMIRegionMap": {
-      "AMI": {
+        "AMI": {
         "INFAEICADMINHVM": "Administrator-Server Image EIC on AWS"
       },
-      "ap-northeast-1": {
-        "INFAEICADMINHVM": "ami-091b70df1f78523a9"
-      },
-      "ap-northeast-2": {
-        "INFAEICADMINHVM": "ami-0314efd09f6e1e44c"
+      "eu-north-1": {
+        "INFAEICADMINHVM": "ami-05224d87eef89247d"
       },
       "ap-south-1": {
-        "INFAEICADMINHVM": "ami-01714f9f8f05ddcf5"
+        "INFAEICADMINHVM": "ami-0ddbc6bd8a2d41162"
       },
-      "ap-southeast-1": {
-        "INFAEICADMINHVM": "ami-03dc899cdb3238bcb"
-      },
-      "ap-southeast-2": {
-        "INFAEICADMINHVM": "ami-09cf893c354e466b8"
-      },
-      "ca-central-1": {
-        "INFAEICADMINHVM": "ami-006a66dbaa73293ed"
-      },
-      "eu-central-1": {
-        "INFAEICADMINHVM": "ami-0141dc7990a64deff"
-      },
-      "eu-west-1": {
-        "INFAEICADMINHVM": "ami-04b04f4c66be30272"
+      "eu-west-3": {
+        "INFAEICADMINHVM": "ami-0b16fedebdb1b6882"
       },
       "eu-west-2": {
-        "INFAEICADMINHVM": "ami-092449347daff4879"
+        "INFAEICADMINHVM": "ami-05a954acd82ba9a0b"
       },
-	  "eu-north-1": {
-        "INFAEICADMINHVM": "ami-03e2197678c66f1b3"
+      "eu-west-1": {
+        "INFAEICADMINHVM": "ami-029c0016a8c544d53"
+      },
+      "ap-northeast-2": {
+        "INFAEICADMINHVM": "ami-0d924a5b437174cf0"
+      },
+      "ap-northeast-1": {
+        "INFAEICADMINHVM": "ami-038f6a512c9a9bcce"
       },
       "sa-east-1": {
-        "INFAEICADMINHVM": "ami-069a44052027aeeb0"
+        "INFAEICADMINHVM": "ami-0cb92897af136a948"
+      },
+      "ca-central-1": {
+        "INFAEICADMINHVM": "ami-0e80b42c34feda009"
+      },
+      "ap-southeast-1": {
+        "INFAEICADMINHVM": "ami-073ff162394546a57"
+      },
+      "ap-southeast-2": {
+        "INFAEICADMINHVM": "ami-0c25f8e43ebad2403"
+      },
+      "eu-central-1": {
+        "INFAEICADMINHVM": "ami-01e35db3f9fa86462"
       },
       "us-east-1": {
-        "INFAEICADMINHVM": "ami-0a26836b30cebbaf9"
+        "INFAEICADMINHVM": "ami-09a3dd850c7d86bb4"
       },
       "us-east-2": {
-        "INFAEICADMINHVM": "ami-0c1af0e4f9d18180c"
+        "INFAEICADMINHVM": "ami-0846d902c45162057"
       },
       "us-west-1": {
-        "INFAEICADMINHVM": "ami-0dea75af1a8e85d21"
+        "INFAEICADMINHVM": "ami-0e641706399b08f7a"
       },
       "us-west-2": {
-        "INFAEICADMINHVM": "ami-0b6a5293087235032"
+        "INFAEICADMINHVM": "ami-08eef3fad48f07fe4"
       },
       "us-gov-west-1": {
-        "INFAEICADMINHVM": "TBD"
+        "INFAEICADMINHVM": "ami-df5025be"
+      },
+      "us-gov-east-1": {
+        "INFAEICADMINHVM": "ami-04c0699fec69fad23"
       }
+      
     }
   },
   "Resources": {
