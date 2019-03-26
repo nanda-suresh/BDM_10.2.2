@@ -138,6 +138,9 @@
       "eu-west-3":{
         "REGION": "EU (Paris)"
       },
+      "eu-north-1":{
+        "REGION": "EU (Stockholm)"
+      },
       "cn-north-1":{
         "REGION": "China (Beijing)"
       },
