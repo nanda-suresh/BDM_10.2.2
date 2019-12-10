@@ -1,44 +1,54 @@
-global:
-  marketplace-ami: false
-  owner: quickstart-eng@amazon.com
-  qsname: quickstart-dei-informatica
-  regions:
-      - eu-west-1
-      - eu-west-2
-      - eu-west-3
-      - sa-east-1
-      - us-east-1
-      - us-east-2
-      - us-west-1
-      - us-west-2
-      - ap-northeast-1
-      - ap-northeast-2
-      - ap-south-1
-      - eu-north-1
-      - ap-southeast-1
-      - ap-southeast-2
-      - ca-central-1
-      - eu-central-1
-  reporting: true
- 
-tests:
-  quickstart-dei-informatica-test:
-    parameter_input: inputfordei.json
-    template_file: informatica-data-engineering-integration-new-vpc.template
-    regions:
-      - eu-west-1
-      - eu-west-2
-      - eu-west-3
-      - sa-east-1
-      - us-east-1
-      - us-east-2
-      - us-west-1
-      - us-west-2
-      - ap-northeast-1
-      - ap-northeast-2
-      - ap-south-1
-      - eu-north-1
-      - ap-southeast-1
-      - ap-southeast-2
-      - ca-central-1
-      - eu-central-1
+[
+    {
+        "ParameterKey": "AvailabilityZones",
+        "ParameterValue": "$[taskcat_genaz_2]"
+    },
+    {
+        "ParameterKey": "StackName",
+        "ParameterValue": "DEIStack"
+    },
+    {
+        "ParameterKey": "VPCCIDR",
+        "ParameterValue": "10.0.0.0/16"
+    },
+    {
+        "ParameterKey": "PublicSubnet1CIDR",
+        "ParameterValue": "10.0.128.0/20"
+    },
+    {
+        "ParameterKey": "PrivateSubnet1CIDR",
+        "ParameterValue": "10.0.0.0/19"
+    },
+	    {
+        "ParameterKey": "PrivateSubnet2CIDR",
+        "ParameterValue": "10.0.192.0/21"
+    },
+	    {
+        "ParameterKey": "IPAddressRange",
+        "ParameterValue": "115.114.81.10/32"
+    },
+	    {
+        "ParameterKey": "DeployBastionServer",
+        "ParameterValue": "Yes"
+    },
+		    {
+        "ParameterKey": "KeyPairName",
+        "ParameterValue": "Nanda_Test"
+    },
+		    {
+        "ParameterKey": "EMR",
+        "ParameterValue": ""
+    },
+		    {
+        "ParameterKey": "S3BucketName",
+        "ParameterValue": ""
+    },
+		    {
+        "ParameterKey": "InformaticaLicenseKeyS3URI",
+        "ParameterValue": "s3://infa-aws-resources/miscellaneous/edp/license/license.key"
+    },
+	    {
+        "ParameterKey": "InfaHA",
+        "ParameterValue": "No"
+    }
+]
