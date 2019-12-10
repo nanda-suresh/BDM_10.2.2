@@ -1,6 +1,6 @@
 global:
   marketplace-ami: false
-  owner: quickstart-eng@amazon.com
+  owner: nandasuresh2@gmail.com
   qsname: BDM10.2.2
   regions:
     - ap-northeast-1
